@@ -71,6 +71,7 @@ class Application extends BaseApplication implements AuthenticationServiceProvid
      * @param \Cake\Http\MiddlewareQueue $middlewareQueue The middleware queue to setup.
      * @return \Cake\Http\MiddlewareQueue The updated middleware queue.
      */
+    
     public function middleware(MiddlewareQueue $middlewareQueue): MiddlewareQueue
     {
         $middlewareQueue->add(new ErrorHandlerMiddleware(Configure::read('Error')))
@@ -81,6 +82,7 @@ class Application extends BaseApplication implements AuthenticationServiceProvid
 
             // Add the AuthenticationMiddleware. It should be
             // after routing and body parser.
+            
             ->add(new AuthenticationMiddleware($this));
 
         return $middlewareQueue;
