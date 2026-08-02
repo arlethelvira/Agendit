@@ -6,16 +6,17 @@ namespace App\Model\Entity;
 use Cake\ORM\Entity;
 
 /**
- * Entity de Especialista.
+ * Entity del catálogo de tipos
+ * de especialistas.
  */
-class Especialista extends Entity
+class TipoEspecialista extends Entity
 {
 
     protected array $_accessible = [
 
         '*' => true,
 
-        'id_especialista' => false,
+        'id_tipo' => false,
     ];
 
 }
