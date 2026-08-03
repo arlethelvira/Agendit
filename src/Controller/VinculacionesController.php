@@ -64,7 +64,13 @@ public function ingresarCodigo()
  */
 public function generarCodigo()
 {
+debug(
+    $this->request
+        ->getSession()
+        ->read('Usuario')
+);
 
+die();
     /*
      * Por ahora ponemos un especialista fijo
      * solo para probar.
@@ -72,9 +78,37 @@ public function generarCodigo()
      * Después lo cambiaremos por el usuario
      * que inició sesión.
      */
-    $idEspecialista = 1;
+    /*
+ * TEMPORAL
+ * Se reemplazará por el usuario autenticado
+ * cuando implementemos el login con Authentication.
+ */
+$idUsuario = $this->request
+    ->getSession()
+    ->read('Usuario.id_usuario');
 
+$especialista = $this
+    ->fetchTable('Especialistas')
+    ->find()
+    ->where([
+        'id_usuario' => $idUsuario
+    ])
+    ->first();
 
+/*
+ * Verificamos que realmente
+ * exista un especialista.
+ */
+if (!$especialista) {
+
+    $this->Flash->error(
+        'No tienes permisos para generar códigos.'
+    );
+
+    return $this->redirect('/');
+}
+
+$idEspecialista = $especialista->id_especialista;
     /*
      * Generamos un código aleatorio.
      *
@@ -300,13 +334,19 @@ public function validarCodigo()
      */
 
 
-    /*
-     * Temporalmente ponemos un usuario fijo.
-     *
-     * Después será el usuario que inició sesión.
-     */
-    $idUsuario = 1;
+/*
+ * Obtenemos el usuario
+ * que inició sesión.
+ */
+$idUsuario = $this->request
+    ->getSession()
+    ->read('Usuario.id_usuario');
 
+/*
+ * TEMPORAL idusuario 
+ * Se reemplazará por el usuario autenticado
+ * cuando implementemos el login con Authentication.
+ */
 
 
     /*
@@ -347,41 +387,25 @@ public function validarCodigo()
     /*
      * Guardamos la vinculación.
      */
-    if (
-        $this->Vinculaciones
-        ->save($vinculacion)
-    ) {
+if ($this->Vinculaciones->save($vinculacion)) {
 
+    $codigo->usado = true;
+    $codigo->estado = 'USADO';
 
+    $this->CodigoInvitacion->save($codigo);
 
-        /*
-         * Marcamos el código como usado.
-         */
-        $codigo->usado = true;
+    $this->Flash->success('Te vinculaste correctamente.');
 
-        $codigo->estado = 'USADO';
+    return $this->redirect([
+        'action' => 'ingresarCodigo'
+    ]);
 
+} else {
 
+    debug($vinculacion->getErrors());
+    die();
 
-        $this->CodigoInvitacion
-            ->save($codigo);
-
-
-
-        $this->Flash->success(
-            'Te vinculaste correctamente.'
-        );
-
-
-
-       /* return $this->redirect([
-            'action'=>'misSocios'
-        ]);*/
-        return $this->redirect([
-    'action'=>'ingresarCodigo'
-]);
-
-    }
+}
 
 
 
@@ -394,5 +418,76 @@ public function validarCodigo()
 
 
 }
+/**
+ * Muestra todos los socios vinculados
+ * con un especialista.
+ */
+public function misSocios()
+{
 
+    /*
+     * TEMPORAL
+     *
+     * Después este ID será obtenido
+     * del usuario que inició sesión.
+     */
+    $idUsuario = $this->request
+    ->getSession()
+    ->read('Usuario.id_usuario');
+
+$especialista = $this
+    ->fetchTable('Especialistas')
+    ->find()
+    ->where([
+        'id_usuario' => $idUsuario
+    ])
+    ->first();
+
+/*
+ * Verificamos que realmente
+ * exista un especialista.
+ */
+if (!$especialista) {
+
+    $this->Flash->error(
+        'No tienes permisos para generar códigos.'
+    );
+
+    return $this->redirect('/');
+}
+
+$idEspecialista = $especialista->id_especialista;
+
+
+
+    /*
+     * Buscamos todas las vinculaciones
+     * pertenecientes al especialista.
+     *
+     * contain() le dice a CakePHP:
+     *
+     * "Además de la tabla vinculacion,
+     * también tráeme los datos
+     * del usuario."
+     */
+    $socios = $this->Vinculaciones
+        ->find()
+        ->contain([
+            'Usuarios'
+        ])
+        ->where([
+            'Vinculaciones.id_especialista' => $idEspecialista,
+            'Vinculaciones.estado' => 'ACTIVA'
+        ])
+        ->all();
+
+
+
+    /*
+     * Enviamos la información
+     * a la vista.
+     */
+    $this->set(compact('socios'));
+
+}
 }

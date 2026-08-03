@@ -43,7 +43,14 @@ return function (RouteBuilder $routes): void {
          *
          * VinculacionesController
          * generarCodigo()
+         * abajooo
          */
+
+   // Páginas estáticas
+$builder->connect('/pages/*', [
+    'controller' => 'Pages',
+    'action' => 'display'
+]);
         $builder->fallbacks();
 
     });

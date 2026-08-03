@@ -48,7 +48,7 @@ class EspecialistasTable extends Table
          * Nutriólogo
          * Psicólogo
          */
-        $this->belongsTo('TipoEspecialista', [
+        $this->belongsTo('TipoEspecialistas', [
             'foreignKey'=>'id_tipo'
         ]);
 

@@ -1,53 +1,107 @@
 <?php
 declare(strict_types=1);
 
-/**
- * CakePHP(tm) : Rapid Development Framework (https://cakephp.org)
- * Copyright (c) Cake Software Foundation, Inc. (https://cakefoundation.org)
- *
- * Licensed under The MIT License
- * For full copyright and license information, please see the LICENSE.txt
- * Redistributions of files must retain the above copyright notice.
- *
- * @copyright Copyright (c) Cake Software Foundation, Inc. (https://cakefoundation.org)
- * @link      https://cakephp.org CakePHP(tm) Project
- * @since     0.2.9
- * @license   https://opensource.org/licenses/mit-license.php MIT License
- */
 namespace App\Controller;
 
 use Cake\Controller\Controller;
+use Cake\Event\EventInterface;
 
 /**
- * Application Controller
+ * Controlador base de toda la aplicación.
  *
- * Add your application-wide methods in the class below, your controllers
- * will inherit them.
- *
- * @link https://book.cakephp.org/4/en/controllers.html#the-app-controller
+ * Todos los demás controladores heredan
+ * de esta clase.
  */
 class AppController extends Controller
 {
+
     /**
-     * Initialization hook method.
-     *
-     * Use this method to add common initialization code like loading components.
-     *
-     * e.g. `$this->loadComponent('FormProtection');`
-     *
-     * @return void
+     * Inicialización general.
      */
     public function initialize(): void
     {
         parent::initialize();
 
+        /*
+         * Componente para mostrar mensajes.
+         */
         $this->loadComponent('Flash');
-       // $this->loadComponent('Authentication.Authentication');
+    }
+
+
+    /**
+     * Se ejecuta antes de cada acción.
+     *
+     * Aquí verificaremos que exista
+     * una sesión iniciada.
+     */
+    public function beforeFilter(EventInterface $event)
+    {
+
+        parent::beforeFilter($event);
+
 
         /*
-         * Enable the following component for recommended CakePHP form protection settings.
-         * see https://book.cakephp.org/4/en/controllers/components/form-protection.html
+         * Acciones públicas.
+         *
+         * Estas páginas pueden abrirse
+         * sin iniciar sesión.
          */
-        //$this->loadComponent('FormProtection');
+        $accionesPublicas = [
+
+            'login',
+
+            'register',
+
+            'registroEspecialista'
+
+        ];
+
+
+        /*
+         * Acción actual.
+         */
+        $accionActual =
+            $this->request
+            ->getParam('action');
+
+
+        /*
+         * Si la acción es pública,
+         * dejamos continuar.
+         */
+        if (in_array($accionActual, $accionesPublicas)) {
+
+            return;
+
+        }
+
+
+        /*
+         * Revisamos si existe la sesión.
+         */
+        $usuario = $this->request
+            ->getSession()
+            ->read('Usuario');
+
+
+        /*
+         * Si no hay sesión,
+         * regresamos al login.
+         */
+        if (!$usuario) {
+
+            $this->Flash->error(
+                'Debes iniciar sesión.'
+            );
+
+            return $this->redirect([
+                'controller' => 'Users',
+                'action' => 'login'
+            ]);
+
+        }
+
     }
+
 }

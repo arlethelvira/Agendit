@@ -1,215 +1,265 @@
 <!doctype html>
-<html lang="en">
+<html lang="es">
+
 <head>
-    <?= $this->element('title-meta', array('title' => 'Login')) ?>
+
+    <?= $this->element('title-meta', ['title' => 'Iniciar sesión']) ?>
 
     <?= $this->element('head-css') ?>
+
 </head>
 
 <body class="authentication-bg">
+
 <div class="account-pages pt-2 pt-sm-5 pb-4 pb-sm-5">
+
     <div class="container">
+
         <div class="row justify-content-center">
-            <div class="col-xl-12">
+
+            <div class="col-xl-10">
+
                 <div class="card auth-card">
+
                     <div class="card-body p-0">
+
                         <div class="row align-items-center g-0">
-                            <div
-                                class="col-lg-6 d-none d-lg-inline-block border-end"
-                            >
+
+                            <!-- Imagen lateral -->
+                            <div class="col-lg-6 d-none d-lg-inline-block border-end">
+
                                 <div class="auth-page-sidebar">
+
                                     <img
-                                        src="/images/sign-in.svg"
-                                        alt="auth"
+                                        src="/images/logoAgendit.png"
                                         class="img-fluid"
-                                    />
-                                </div>
-                            </div>
-                            <div class="col-lg-6">
-                                <div class="p-4">
-                                    <div
-                                        class="mx-auto mb-4 text-center auth-logo"
+                                        alt="Login Agendit"
                                     >
-                                        <a
-                                            href="/"
-                                            class="logo-dark"
-                                        >
+
+                                </div>
+
+                            </div>
+
+                            <!-- Formulario -->
+                            <div class="col-lg-6">
+
+                                <div class="p-4">
+
+                                    <!-- Logo -->
+                                    <div class="mx-auto mb-4 text-center auth-logo">
+
+                                        <a href="/" class="logo-dark">
+
                                             <img
-                                                src="/images/logo-sm.png"
+                                                src="/images/logoAgendit.png"
                                                 height="30"
                                                 class="me-1"
-                                                alt="logo sm"
-                                            />
+                                                alt="Agendit"
+                                            >
+
                                             <img
-                                                src="/images/logo-dark.png"
+                                                src="/images/letrasAgendit.png"
                                                 height="24"
-                                                alt="logo dark"
-                                            />
+                                                alt="Agendit"
+                                            >
+
                                         </a>
 
-                                        <a
-                                            href="/"
-                                            class="logo-light"
-                                        >
+                                        <a href="/" class="logo-light">
+
                                             <img
-                                                src="/images/logo-sm.png"
+                                                src="/images/logoAgendit.png"
                                                 height="30"
                                                 class="me-1"
-                                                alt="logo sm"
-                                            />
+                                                alt="Agendit"
+                                            >
+
                                             <img
-                                                src="/images/logo-light.png"
+                                                src="/images/letrasAgendit.png"
                                                 height="24"
-                                                alt="logo light"
-                                            />
+                                                alt="Agendit"
+                                            >
+
                                         </a>
+
                                     </div>
-                                    <h2
-                                        class="fw-bold text-center fs-18"
-                                    >
-                                        Sign In
+
+                                    <!-- Título -->
+
+                                    <h2 class="fw-bold text-center fs-18">
+
+                                        Bienvenido a Agendit
+
                                     </h2>
-                                    <p
-                                        class="text-muted text-center mt-1 mb-4"
-                                    >
-                                        Enter your email address and
-                                        password to access admin panel.
+
+                                    <p class="text-muted text-center mt-2 mb-4">
+
+                                        Inicia sesión para continuar organizando
+                                        tus tareas, hábitos y objetivos.
+
                                     </p>
 
-                                    <div
-                                        class="row justify-content-center"
-                                    >
-                                        <div class="col-12 col-md-8">
-                                            <?= $this->Form->create(); ?>
+                                    <div class="row justify-content-center">
 
-                                            <div class="text-danger mb-3">
-                                                <?= $this->Flash->render(); ?>
-                                            </div>
+                                        <div class="col-12 col-md-9">
+
+                                            <?= $this->Flash->render() ?>
+
+                                            <?= $this->Form->create(null, [
+
+                                                'class' => 'authentication-form'
+
+                                            ]) ?>
+
+                                            <!-- Correo -->
 
                                             <div class="mb-3">
-                                                <label
-                                                    class="form-label"
-                                                    for="example-email"
-                                                >Email</label
-                                                >
-                                                <input
-                                                    type="email"
-                                                    id="example-email"
-                                                    name="email"
-                                                    class="form-control"
-                                                    placeholder="Enter your email"
-                                                    value="test@test.com">
+
+                                                <label class="form-label">
+
+                                                    Correo electrónico
+
+                                                </label>
+
+                                                <?= $this->Form->control('email', [
+
+                                                    'label' => false,
+
+                                                    'class' => 'form-control',
+
+                                                    'placeholder' => 'Ingresa tu correo electrónico'
+
+                                                ]) ?>
+
                                             </div>
+
+                                            <!-- Contraseña -->
+
                                             <div class="mb-3">
-                                                <a
-                                                    href="auth-password"
-                                                    class="float-end text-muted text-unline-dashed ms-1"
-                                                >Reset
-                                                    password</a
-                                                >
-                                                <label
-                                                    class="form-label"
-                                                    for="example-password"
-                                                >Password</label
-                                                >
-                                                <input
-                                                    type="password"
-                                                    id="password"
-                                                    name="password"
-                                                    class="form-control"
-                                                    placeholder="Enter your password"
-                                                    value="password"
-                                                />
+
+                                                <label class="form-label">
+
+                                                    Contraseña
+
+                                                </label>
+
+                                                <?= $this->Form->control('contrasena', [
+
+                                                    'type' => 'password',
+
+                                                    'label' => false,
+
+                                                    'class' => 'form-control',
+
+                                                    'placeholder' => 'Ingresa tu contraseña'
+
+                                                ]) ?>
+
                                             </div>
+
+                                            <!-- Recordarme -->
+
                                             <div class="mb-3">
-                                                <div
-                                                    class="form-check"
-                                                >
+
+                                                <div class="form-check">
+
                                                     <input
                                                         type="checkbox"
                                                         class="form-check-input"
-                                                        id="checkbox-signin"
-                                                    />
+                                                        id="recordarme"
+                                                    >
+
                                                     <label
                                                         class="form-check-label"
-                                                        for="checkbox-signin"
-                                                    >Remember
-                                                        me</label
+                                                        for="recordarme"
                                                     >
+
+                                                        Recordarme
+
+                                                    </label>
+
                                                 </div>
+
                                             </div>
 
-                                            <div
-                                                class="mb-1 text-center d-grid"
-                                            >
-                                                <button
-                                                    class="btn btn-primary"
-                                                    type="submit"
-                                                >
-                                                    Sign In
-                                                </button>
+                                            <!-- Botón -->
+
+                                            <div class="d-grid mb-3">
+
+                                                <?= $this->Form->button(
+
+                                                    'Iniciar sesión',
+
+                                                    [
+
+                                                        'class' => 'btn btn-primary'
+
+                                                    ]
+
+                                                ) ?>
+
                                             </div>
 
-                                            <?= $this->Form->end(); ?>
+                                            <?= $this->Form->end() ?>
 
-                                            <p
-                                                class="mt-3 fw-semibold no-span"
-                                            >
-                                                OR sign with
-                                            </p>
-
-                                            <div class="text-center">
-                                                <a
-                                                    href="javascript:void(0);"
-                                                    class="btn btn-light shadow-none"
-                                                ><i
-                                                        class="bx bxl-google fs-20"
-                                                    ></i
-                                                    ></a>
-                                                <a
-                                                    href="javascript:void(0);"
-                                                    class="btn btn-light shadow-none"
-                                                ><i
-                                                        class="bx bxl-facebook fs-20"
-                                                    ></i
-                                                    ></a>
-                                                <a
-                                                    href="javascript:void(0);"
-                                                    class="btn btn-light shadow-none"
-                                                ><i
-                                                        class="bx bxl-github fs-20"
-                                                    ></i
-                                                    ></a>
-                                            </div>
                                         </div>
-                                        <!-- end col -->
-                                    </div>
-                                    <!-- end row -->
-                                </div>
-                            </div>
-                            <!-- end col -->
-                        </div>
-                        <!-- end row -->
-                    </div>
-                    <!-- end card-body -->
-                </div>
-                <!-- end card -->
 
-                <p class="text-white mb-0 text-center">
-                    Don't have an account?
+                                    </div>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+                <!-- Crear cuenta -->
+
+                <p class="text-white text-center mb-1">
+
+                    ¿Aún no tienes una cuenta?
+
                     <a
-                        href="auth-signup"
+                        href="/users/register"
                         class="text-white fw-bold ms-1"
-                    >Sign Up</a
                     >
+
+                        Crear cuenta
+
+                    </a>
+
                 </p>
+
+                <!-- Especialista -->
+
+                <p class="text-white text-center">
+
+                    ¿Eres especialista?
+
+                    <a
+                        href="/users/registro-especialista"
+                        class="text-white fw-bold ms-1"
+                    >
+
+                        Registrar cuenta de especialista
+
+                    </a>
+
+                </p>
+
             </div>
-            <!-- end col -->
+
         </div>
-        <!-- end row -->
+
     </div>
+
 </div>
 
 <?= $this->element('vendor-scripts') ?>
+
 </body>
+
 </html>
