@@ -1,1 +1,245 @@
-class CalendarSchedule{constructor(){this.body=document.body,this.modal=new bootstrap.Modal(document.getElementById("event-modal"),{backdrop:"static"}),this.calendar=document.getElementById("calendar"),this.formEvent=document.getElementById("forms-event"),this.btnNewEvent=document.getElementById("btn-new-event"),this.btnDeleteEvent=document.getElementById("btn-delete-event"),this.btnSaveEvent=document.getElementById("btn-save-event"),this.modalTitle=document.getElementById("modal-title"),this.calendarObj=null,this.selectedEvent=null,this.newEventData=null}onEventClick(e){this.formEvent?.reset(),this.formEvent.classList.remove("was-validated"),this.newEventData=null,this.btnDeleteEvent.style.display="block",this.modalTitle.text="Edit Event",this.modal.show(),this.selectedEvent=e.event,document.getElementById("event-title").value=this.selectedEvent.title,document.getElementById("event-category").value=this.selectedEvent.classNames[0]}onSelect(e){this.formEvent?.reset(),this.formEvent?.classList.remove("was-validated"),this.selectedEvent=null,this.newEventData=e,this.btnDeleteEvent.style.display="none",this.modalTitle.text="Add New Event",this.modal.show(),this.calendarObj.unselect()}init(){var e=new Date;const a=this;var t=document.getElementById("external-events"),t=(new FullCalendar.Draggable(t,{itemSelector:".external-event",eventData:function(e){return{title:e.innerText,classNames:e.getAttribute("data-class")}}}),[{title:"Interview - Backend Engineer",start:e,end:e,className:"bg-primary"},{title:"Meeting with CT Team",start:new Date(Date.now()+13e6),end:e,className:"bg-warning"},{title:"Meeting with Mr. Reback",start:new Date(Date.now()+308e6),end:new Date(Date.now()+338e6),className:"bg-info"},{title:"Interview - Frontend Engineer",start:new Date(Date.now()+6057e4),end:new Date(Date.now()+153e6),className:"bg-secondary"},{title:"Phone Screen - Frontend Engineer",start:new Date(Date.now()+168e6),className:"bg-success"},{title:"Buy Design Assets",start:new Date(Date.now()+33e7),end:new Date(Date.now()+3308e5),className:"bg-primary"},{title:"Setup Github Repository",start:new Date(Date.now()+1008e6),end:new Date(Date.now()+1108e6),className:"bg-danger"},{title:"Meeting with Mr. Shreyu",start:new Date(Date.now()+2508e6),end:new Date(Date.now()+2508e6),className:"bg-dark"}]);a.calendarObj=new FullCalendar.Calendar(a.calendar,{plugins:[],slotDuration:"00:30:00",slotMinTime:"07:00:00",slotMaxTime:"19:00:00",themeSystem:"bootstrap",bootstrapFontAwesome:!1,buttonText:{today:"Today",month:"Month",week:"Week",day:"Day",list:"List",prev:"Prev",next:"Next"},initialView:"dayGridMonth",handleWindowResize:!0,height:window.innerHeight-200,headerToolbar:{left:"prev,next today",center:"title",right:"dayGridMonth,timeGridWeek,timeGridDay,listMonth"},initialEvents:t,editable:!0,droppable:!0,selectable:!0,dateClick:function(e){a.onSelect(e)},eventClick:function(e){a.onEventClick(e)}}),a.calendarObj.render(),a.btnNewEvent.addEventListener("click",function(e){a.onSelect({date:new Date,allDay:!0})}),a.formEvent?.addEventListener("submit",function(e){e.preventDefault();var t,n=a.formEvent;n.checkValidity()?(a.selectedEvent?(a.selectedEvent.setProp("title",document.getElementById("event-title").value),a.selectedEvent.setProp("classNames",document.getElementById("event-category").value)):(t={title:document.getElementById("event-title").value,start:a.newEventData.date,allDay:a.newEventData.allDay,className:document.getElementById("event-category").value},a.calendarObj.addEvent(t)),a.modal.hide()):(e.stopPropagation(),n.classList.add("was-validated"))}),a.btnDeleteEvent.addEventListener("click",function(e){a.selectedEvent&&(a.selectedEvent.remove(),a.selectedEvent=null,a.modal.hide())})}}document.addEventListener("DOMContentLoaded",function(e){(new CalendarSchedule).init()});
+class CalendarSchedule {
+    constructor() {
+        this.body = document.body;
+        this.modal = new bootstrap.Modal(document.getElementById("event-modal"), { backdrop: "static" });
+        this.calendar = document.getElementById("calendar");
+        this.formEvent = document.getElementById("forms-event");
+        this.btnNewEvent = document.getElementById("btn-new-event");
+        this.btnDeleteEvent = document.getElementById("btn-delete-event");
+        this.btnSaveEvent = document.getElementById("btn-save-event");
+        this.modalTitle = document.getElementById("modal-title");
+        this.filtroIdUsuario = document.getElementById("filtro-id-usuario");
+        this.calendarObj = null;
+        this.selectedHabitoId = null;
+        this.selectedDate = null;
+    }
+
+    idUsuarioActual() {
+        return this.filtroIdUsuario.value || 4;
+    }
+
+    formatFecha(d) {
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, "0");
+        const day = String(d.getDate()).padStart(2, "0");
+        return `${y}-${m}-${day}`;
+    }
+
+    // Genera las fechas (YYYY-MM-DD) en que debe aparecer un hábito
+    // dentro del rango [rangeStart, rangeEnd), según su frecuencia.
+    generarFechas(habito, rangeStart, rangeEnd) {
+        const baseStr = (habito.fecha_creacion || "").substring(0, 10);
+        if (!baseStr) return [];
+
+        const base = new Date(baseStr + "T00:00:00");
+        const start = new Date(rangeStart);
+        start.setHours(0, 0, 0, 0);
+        const end = new Date(rangeEnd);
+        end.setHours(0, 0, 0, 0);
+
+        const frecuencia = (habito.frecuencia || "").trim().toLowerCase();
+        const fechas = [];
+
+        const pasos = { "diaria": 1, "cada 2 dias": 2, "cada 3 dias": 3, "semanal": 7 };
+
+        if (frecuencia === "mensual") {
+            let cursor = new Date(base);
+            while (cursor < start) cursor.setMonth(cursor.getMonth() + 1);
+            while (cursor < end) {
+                if (cursor >= base) fechas.push(this.formatFecha(cursor));
+                cursor.setMonth(cursor.getMonth() + 1);
+            }
+            return fechas;
+        }
+
+        if (pasos[frecuencia]) {
+            const step = pasos[frecuencia];
+            let cursor = new Date(base);
+            if (cursor < start) {
+                const diffDias = Math.floor((start - cursor) / 86400000);
+                const saltos = Math.ceil(diffDias / step);
+                cursor.setDate(cursor.getDate() + saltos * step);
+            }
+            while (cursor < end) {
+                if (cursor >= base) fechas.push(this.formatFecha(cursor));
+                cursor.setDate(cursor.getDate() + step);
+            }
+            return fechas;
+        }
+
+        // Frecuencia no reconocida: se muestra una sola vez en su fecha de creación
+        if (base >= start && base < end) fechas.push(this.formatFecha(base));
+        return fechas;
+    }
+
+    async fetchHabitosRaw() {
+        const idUsuario = this.idUsuarioActual();
+        const res = await fetch(`/habitos?id_usuario=${idUsuario}`);
+        const resultado = await res.json();
+        if (!resultado.ok) {
+            console.error("Error al cargar hábitos:", resultado.error);
+            return [];
+        }
+        return resultado.data;
+    }
+
+    abrirModalNuevo(fecha) {
+        this.formEvent?.reset();
+        this.formEvent?.classList.remove("was-validated");
+        this.selectedHabitoId = null;
+        this.selectedDate = fecha;
+        this.btnDeleteEvent.style.display = "none";
+        this.modalTitle.textContent = "Nuevo Hábito";
+        this.modal.show();
+    }
+
+    abrirModalEditar(event) {
+        this.formEvent?.reset();
+        this.formEvent?.classList.remove("was-validated");
+        this.selectedHabitoId = event.id;
+        this.selectedDate = null;
+        this.btnDeleteEvent.style.display = "block";
+        this.modalTitle.textContent = "Editar Hábito";
+
+        document.getElementById("event-title").value = event.title;
+        document.getElementById("event-notas").value = event.extendedProps.notas || "";
+        document.getElementById("event-frecuencia").value = event.extendedProps.frecuencia || "";
+        document.getElementById("event-category").value = event.classNames[0] || "bg-primary";
+
+        this.modal.show();
+    }
+
+    async guardarHabito(e) {
+        e.preventDefault();
+        const form = this.formEvent;
+        if (!form.checkValidity()) {
+            e.stopPropagation();
+            form.classList.add("was-validated");
+            return;
+        }
+
+        const datos = {
+            titulo: document.getElementById("event-title").value,
+            notas: document.getElementById("event-notas").value,
+            frecuencia: document.getElementById("event-frecuencia").value,
+            color: document.getElementById("event-category").value,
+        };
+
+        let url;
+        if (this.selectedHabitoId) {
+            // Editar: NO se manda id_usuario, se conserva el dueño original
+            url = `/habitos/edit/${this.selectedHabitoId}`;
+        } else {
+            // Crear: se asigna id_usuario y la fecha elegida, fija al mediodía
+            // para evitar que un corrimiento de zona horaria cruce la medianoche.
+            url = `/habitos/add`;
+            datos.id_usuario = this.idUsuarioActual();
+            datos.fecha_creacion = `${this.selectedDate}T12:00:00`;
+        }
+
+        const res = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(datos),
+        });
+        const resultado = await res.json();
+
+        if (resultado.ok) {
+            this.modal.hide();
+            this.calendarObj.refetchEvents();
+        } else {
+            alert("Error al guardar: " + JSON.stringify(resultado.error));
+        }
+    }
+
+    async eliminarHabito() {
+        if (!this.selectedHabitoId) return;
+        if (!confirm("¿Eliminar este hábito? Esto lo quita de todas sus fechas repetidas.")) return;
+
+        const res = await fetch(`/habitos/delete/${this.selectedHabitoId}`, { method: "POST" });
+        const resultado = await res.json();
+
+        if (resultado.ok) {
+            this.modal.hide();
+            this.calendarObj.refetchEvents();
+        } else {
+            alert("Error al eliminar: " + JSON.stringify(resultado.error));
+        }
+    }
+
+    init() {
+        const self = this;
+
+        self.calendarObj = new FullCalendar.Calendar(self.calendar, {
+            plugins: [],
+            themeSystem: "bootstrap",
+            bootstrapFontAwesome: false,
+            buttonText: {
+                today: "Hoy", month: "Mes", week: "Semana", day: "Día",
+                list: "Lista", prev: "Ant", next: "Sig",
+            },
+            initialView: "dayGridMonth",
+            handleWindowResize: true,
+            height: window.innerHeight - 200,
+            headerToolbar: {
+                left: "prev,next today",
+                center: "title",
+                right: "dayGridMonth,timeGridWeek,timeGridDay,listMonth",
+            },
+            events: function (fetchInfo, successCallback, failureCallback) {
+                self.fetchHabitosRaw().then(habitos => {
+                    const eventos = [];
+                    habitos.forEach(h => {
+                        const fechas = self.generarFechas(h, fetchInfo.start, fetchInfo.end);
+                        fechas.forEach(f => {
+                            eventos.push({
+                                id: h.id_habito,
+                                title: h.titulo,
+                                start: f,
+                                allDay: true,
+                                className: h.color || "bg-primary",
+                                extendedProps: {
+                                    notas: h.notas,
+                                    frecuencia: h.frecuencia,
+                                    id_usuario: h.id_usuario,
+                                },
+                            });
+                        });
+                    });
+                    successCallback(eventos);
+                }).catch(failureCallback);
+            },
+            editable: false,
+            selectable: true,
+            dateClick: function (info) {
+                self.abrirModalNuevo(info.dateStr);
+            },
+            eventClick: function (info) {
+                self.abrirModalEditar(info.event);
+            },
+        });
+
+        self.calendarObj.render();
+
+        self.btnNewEvent.addEventListener("click", function () {
+            const hoy = self.formatFecha(new Date());
+            self.abrirModalNuevo(hoy);
+        });
+
+        self.formEvent?.addEventListener("submit", function (e) {
+            self.guardarHabito(e);
+        });
+
+        self.btnDeleteEvent.addEventListener("click", function () {
+            self.eliminarHabito();
+        });
+
+        self.filtroIdUsuario.addEventListener("change", function () {
+            self.calendarObj.refetchEvents();
+        });
+    }
+}
+
+document.addEventListener("DOMContentLoaded", function () {
+    new CalendarSchedule().init();
+});
