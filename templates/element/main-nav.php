@@ -172,22 +172,11 @@
                         <li class="sub-nav-item">
                             <a
                                 class="sub-nav-link"
-                                href="apps-calendar-schedule"
-                                >Schedule</a
-                            >
-                        </li>
-                        <li class="sub-nav-item">
-                            <a
-                                class="sub-nav-link"
-                                href="apps-calendar-integration"
-                                >Integration</a
-                            >
-                        </li>
-                        <li class="sub-nav-item">
-                            <a
-                                class="sub-nav-link"
-                                href="apps-calendar-help"
-                                >Help</a
+                                href="<?= $this->Url->build([
+                                    'controller' => 'Habitos',
+                                    'action' => 'calendario'
+                                ]) ?>"
+                                >Calendario de Hábitos</a
                             >
                         </li>
                     </ul>
