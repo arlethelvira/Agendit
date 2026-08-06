@@ -31,6 +31,21 @@ return function (RouteBuilder $routes): void {
             'action' => 'index'
         ]);
 
+        $builder->connect('/', [
+            'controller' => 'Pages', 
+            'action' => 'display', 'index']);
+
+        $builder->connect('/habitos', [
+            'controller' => 'Habitos', 
+            'action' => 'index']); 
+
+        $builder->connect('/habitos/{action}/*', 
+        ['controller' => 'Habitos']);
+
+        $builder->connect('/*', [
+            'controller' => 'Pages', 
+            'action' => 'root']);  
+
 
         /*
          * Rutas automáticas de CakePHP
