@@ -1,73 +1,107 @@
 <?php
+declare(strict_types=1);
 
 use Cake\Routing\Route\DashedRoute;
 use Cake\Routing\RouteBuilder;
 
 return function (RouteBuilder $routes): void {
 
+    // Usamos URLs con guiones:
+    // /registro-especialista
+    // /generar-codigo
+    // /mis-socios
     $routes->setRouteClass(DashedRoute::class);
-
 
     $routes->scope('/', function (RouteBuilder $builder): void {
 
+        // =========================================================
+        // LOGIN
+        // =========================================================
 
-        // Login
         $builder->connect('/login', [
             'controller' => 'Users',
             'action' => 'login'
         ]);
 
+        // =========================================================
+        // LOGOUT
+        // =========================================================
 
-        // Logout
         $builder->connect('/logout', [
             'controller' => 'Users',
             'action' => 'logout'
         ]);
 
+        // =========================================================
+        // DASHBOARD PRINCIPAL
+        // =========================================================
 
-        // Dashboard principal
         $builder->connect('/', [
             'controller' => 'Dashboard',
             'action' => 'index'
         ]);
 
-        $builder->connect('/', [
-            'controller' => 'Pages', 
-            'action' => 'display', 'index']);
+        // =========================================================
+        // HÁBITOS / CALENDARIO
+        // =========================================================
 
         $builder->connect('/habitos', [
-            'controller' => 'Habitos', 
-            'action' => 'index']); 
+            'controller' => 'Habitos',
+            'action' => 'index'
+        ]);
 
-        $builder->connect('/habitos/{action}/*', 
-        ['controller' => 'Habitos']);
+        $builder->connect('/habitos/{action}/*', [
+            'controller' => 'Habitos'
+        ]);
 
-        $builder->connect('/*', [
-            'controller' => 'Pages', 
-            'action' => 'root']);  
+        // =========================================================
+        // VINCULACIONES
+        // =========================================================
+        //
+        // Ejemplos:
+        //
+        // /vinculaciones/generar-codigo
+        // /vinculaciones/ingresar-codigo
+        // /vinculaciones/validar-codigo
+        // /vinculaciones/mis-socios
+        //
 
+        $builder->connect('/vinculaciones/{action}/*', [
+            'controller' => 'Vinculaciones'
+        ]);
 
-        /*
-         * Rutas automáticas de CakePHP
-         *
-         * Esto permite:
-         *
-         * /vinculaciones/generar-codigo
-         *
-         * buscar:
-         *
-         * VinculacionesController
-         * generarCodigo()
-         * abajooo
-         */
+        // =========================================================
+        // ADMINISTRADOR
+        // =========================================================
+        //
+        // /admin
+        // /admin/aceptar/5
+        // /admin/rechazar/5
+        //
 
-   // Páginas estáticas
-$builder->connect('/pages/*', [
-    'controller' => 'Pages',
-    'action' => 'display'
-]);
+        $builder->connect('/admin', [
+            'controller' => 'Admin',
+            'action' => 'index'
+        ]);
+
+        $builder->connect('/admin/{action}/*', [
+            'controller' => 'Admin'
+        ]);
+
+        // =========================================================
+        // PÁGINAS
+        // =========================================================
+
+        $builder->connect('/pages/*', [
+            'controller' => 'Pages',
+            'action' => 'display'
+        ]);
+
+        // =========================================================
+        // FALLBACKS DE CAKEPHP
+        // =========================================================
+
         $builder->fallbacks();
 
     });
-
 };

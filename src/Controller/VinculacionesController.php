@@ -4,149 +4,233 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use Cake\I18n\FrozenTime;
-use Cake\Utility\Text;
-use Cake\Utility\Security;
-
-
 
 /**
  * Controlador encargado del sistema
  * de vinculación entre especialistas y socios.
+ *
+ * Seguridad:
+ *
+ * ESPECIALISTA:
+ * - generarCodigo()
+ * - misSocios()
+ *
+ * USUARIO:
+ * - ingresarCodigo()
+ * - validarCodigo()
  */
 class VinculacionesController extends AppController
 {
-        private $CodigoInvitacion;
+    /**
+     * Modelo encargado de los códigos de invitación.
+     */
+    private $CodigoInvitacion;
 
+    /**
+     * Modelo encargado de las vinculaciones
+     * entre usuarios y especialistas.
+     */
     private $Vinculaciones;
 
+
     /**
-     * Carga modelos adicionales.
-     */
-public function initialize(): void
-{
-    parent::initialize();
-
-
-    /*
-     * Cargamos el modelo CodigoInvitacion
-     * y lo guardamos en una propiedad.
-     */
-    $this->CodigoInvitacion = 
-        $this->fetchTable('CodigoInvitacion');
-
-
-    /*
-     * Cargamos el modelo Vinculaciones.
-     */
-    $this->Vinculaciones =
-        $this->fetchTable('Vinculaciones');
-
-}
-    /**
- * Muestra el formulario para que un socio
- * ingrese un código de invitación.
- */
-public function ingresarCodigo()
-{
-
-    /*
-     * Este método solamente carga la vista.
+     * Inicialización del controlador.
      *
-     * La validación se hará en validarCodigo().
+     * Cargamos los modelos que utilizaremos
+     * durante las diferentes acciones.
      */
+    public function initialize(): void
+    {
+        parent::initialize();
 
-}
+        /*
+         * Modelo de códigos de invitación.
+         */
+        $this->CodigoInvitacion =
+            $this->fetchTable('CodigoInvitacion');
+
+        /*
+         * Modelo de vinculaciones.
+         */
+        $this->Vinculaciones =
+            $this->fetchTable('Vinculaciones');
+    }
+
+
     /**
- * Genera un código de invitación para un especialista.
- *
- * El especialista comparte este código
- * con un socio para que pueda vincularse.
- */
+     * ==========================================================
+     * INGRESAR CÓDIGO
+     * ==========================================================
+     *
+     * Esta pantalla es para el USUARIO.
+     *
+     * El usuario escribe el código que recibió
+     * de un especialista.
+     */
+    public function ingresarCodigo()
+    {
+        /*
+         * Obtenemos los datos del usuario
+         * que inició sesión.
+         */
+        $usuario = $this->usuarioActual();
+
+        /*
+         * Verificamos que el usuario tenga
+         * el rol correcto.
+         *
+         * Esta acción solamente pertenece
+         * al usuario normal.
+         */
+        if ($usuario['rol'] !== 'usuario') {
+
+            $this->Flash->error(
+                'No tienes permiso para ingresar códigos de invitación.'
+            );
+
+            return $this->redirect([
+                'controller' => 'Dashboard',
+                'action' => 'index'
+            ]);
+        }
+
+        /*
+         * Esta acción solamente muestra
+         * el formulario.
+         *
+         * La validación del código se realiza
+         * en validarCodigo().
+         */
+    }
+
+
+    /**
+     * ==========================================================
+     * GENERAR CÓDIGO
+     * ==========================================================
+     *
+     * Esta acción solamente puede ser utilizada
+     * por un ESPECIALISTA.
+     *
+     * El especialista genera un código que
+     * posteriormente compartirá con un usuario.
+     */
 public function generarCodigo()
 {
-debug(
-    $this->request
-        ->getSession()
-        ->read('Usuario')
-);
-
-die();
     /*
-     * Por ahora ponemos un especialista fijo
-     * solo para probar.
+     * Obtenemos el usuario que inició sesión.
+     */
+    $usuario = $this->usuarioActual();
+
+
+    /*
+     * SEGURIDAD:
      *
-     * Después lo cambiaremos por el usuario
+     * Solamente un especialista puede
+     * acceder a esta sección.
+     */
+    if ($usuario['rol'] !== 'especialista') {
+
+        $this->Flash->error(
+            'No tienes permiso para generar códigos.'
+        );
+
+        return $this->redirect([
+            'controller' => 'Dashboard',
+            'action' => 'index'
+        ]);
+    }
+
+
+    /*
+     * Si solamente entramos a la página,
+     * mostramos la vista sin generar código.
+     */
+    if (!$this->request->is('post')) {
+        return;
+    }
+
+
+    /*
+     * Obtenemos el ID del usuario
      * que inició sesión.
      */
+    $idUsuario = $usuario['id_usuario'];
+
+
     /*
- * TEMPORAL
- * Se reemplazará por el usuario autenticado
- * cuando implementemos el login con Authentication.
- */
-$idUsuario = $this->request
-    ->getSession()
-    ->read('Usuario.id_usuario');
+     * Buscamos el especialista relacionado
+     * con el usuario.
+     */
+    $especialista = $this
+        ->fetchTable('Especialistas')
+        ->find()
+        ->where([
+            'id_usuario' => $idUsuario
+        ])
+        ->first();
 
-$especialista = $this
-    ->fetchTable('Especialistas')
-    ->find()
-    ->where([
-        'id_usuario' => $idUsuario
-    ])
-    ->first();
 
-/*
- * Verificamos que realmente
- * exista un especialista.
- */
-if (!$especialista) {
+    /*
+     * Verificamos que exista el perfil
+     * de especialista.
+     */
+    if (!$especialista) {
 
-    $this->Flash->error(
-        'No tienes permisos para generar códigos.'
+        $this->Flash->error(
+            'No se encontró el perfil de especialista.'
+        );
+
+        return $this->redirect([
+            'controller' => 'Dashboard',
+            'action' => 'index'
+        ]);
+    }
+
+
+    /*
+     * Obtenemos el ID del especialista.
+     */
+    $idEspecialista = $especialista->id_especialista;
+
+
+    /*
+     * Generamos un código aleatorio de 6 caracteres.
+     */
+    $codigoGenerado = strtoupper(
+        substr(bin2hex(random_bytes(4)), 0, 6)
     );
 
-    return $this->redirect('/');
-}
 
-$idEspecialista = $especialista->id_especialista;
     /*
-     * Generamos un código aleatorio.
-     *
-     * Ejemplo:
-     * A7K92P
+     * Creamos la entidad.
      */
-  $codigoGenerado = strtoupper(
-    substr(bin2hex(random_bytes(4)), 0, 6)
- );
+    $codigo = $this->CodigoInvitacion
+        ->newEmptyEntity();
 
 
     /*
-     * Creamos una nueva entidad.
-     *
-     * Una entidad representa un registro nuevo
-     * que todavía no está guardado.
-     */
-    $codigo = $this->CodigoInvitacion->newEmptyEntity();
-
-
-
-    /*
-     * Llenamos los datos que se guardarán
-     * en la tabla codigo_invitacion.
+     * Relacionamos el código
+     * con el especialista.
      */
     $codigo->id_especialista = $idEspecialista;
 
-    $codigo->codigo = $codigoGenerado;
 
     /*
-     * Expira después de 7 días.
+     * Guardamos el código.
+     */
+    $codigo->codigo = $codigoGenerado;
+
+
+    /*
+     * El código expira en 7 días.
      */
     $codigo->fecha_expiracion =
         FrozenTime::now()->addDays(7);
 
 
     /*
-     * Nadie lo ha usado todavía.
+     * Todavía no ha sido utilizado.
      */
     $codigo->usado = false;
 
@@ -157,21 +241,17 @@ $idEspecialista = $especialista->id_especialista;
     $codigo->estado = 'ACTIVO';
 
 
-
     /*
-     * Guardamos en PostgreSQL.
+     * Guardamos en la base de datos.
      */
     if ($this->CodigoInvitacion->save($codigo)) {
-
 
         $this->Flash->success(
             'Código generado correctamente.'
         );
 
-
         /*
-         * Mandamos el código a la vista
-         * para mostrarlo.
+         * Mandamos el código a la vista.
          */
         $this->set([
             'codigo' => $codigoGenerado
@@ -179,315 +259,381 @@ $idEspecialista = $especialista->id_especialista;
 
     } else {
 
-
         $this->Flash->error(
             'No se pudo generar el código.'
         );
-
     }
-
 }
-/**
- * Valida un código de invitación
- * y crea la relación entre socio y especialista.
- */
-public function validarCodigo()
-{
 
-    /*
-     * Verificamos que la petición sea POST.
+
+    /**
+     * ==========================================================
+     * VALIDAR CÓDIGO
+     * ==========================================================
      *
-     * No queremos que alguien ejecute esto
-     * escribiendo la URL directamente.
-     */
-    if (!$this->request->is('post')) {
-
-        return $this->redirect([
-            'action' => 'ingresarCodigo'
-        ]);
-
-    }
-
-
-    /*
-     * Obtenemos los datos enviados
-     * desde el formulario.
+     * Esta acción solamente puede ser ejecutada
+     * por un USUARIO.
      *
-     * Ejemplo:
-     *
-     * codigo = ABC123
+     * Recibe el código enviado desde el formulario,
+     * comprueba que sea válido y crea la vinculación.
      */
-    $codigoIngresado =
-        $this->request->getData('codigo');
-
-
-
-    /*
-     * Buscamos el código en la tabla
-     * codigo_invitacion.
-     */
-    $codigo = $this->CodigoInvitacion
-        ->find()
-        ->where([
-            'codigo' => $codigoIngresado
-        ])
-        ->first();
-
-
-
-    /*
-     * Si no existe el código
-     */
-    if (!$codigo) {
-
-        $this->Flash->error(
-            'El código no existe.'
-        );
-
-        return $this->redirect([
-            'action'=>'ingresarCodigo'
-        ]);
-
-    }
-
-
-
-    /*
-     * Verificamos si ya fue utilizado.
-     */
-    if ($codigo->usado == true) {
-
-
-        $this->Flash->error(
-            'Este código ya fue utilizado.'
-        );
-
-
-        return $this->redirect([
-            'action'=>'ingresarCodigo'
-        ]);
-
-    }
-
-
-
-    /*
-     * Verificamos que siga activo.
-     */
-    if ($codigo->estado !== 'ACTIVO') {
-
-
-        $this->Flash->error(
-            'Este código ya no está disponible.'
-        );
-
-
-        return $this->redirect([
-            'action'=>'ingresarCodigo'
-        ]);
-
-    }
-
-
-
-    /*
-     * Revisamos si ya expiró.
-     */
-    if (
-        FrozenTime::now()
-        > $codigo->fecha_expiracion
-    ) {
+    public function validarCodigo()
+    {
+        /*
+         * Obtenemos el usuario actual.
+         */
+        $usuario = $this->usuarioActual();
 
 
         /*
-         * Actualizamos el estado.
+         * SEGURIDAD:
+         *
+         * Solamente un usuario normal puede
+         * validar un código de invitación.
          */
-        $codigo->estado = 'EXPIRADO';
+        if ($usuario['rol'] !== 'usuario') {
+
+            $this->Flash->error(
+                'No tienes permiso para validar códigos.'
+            );
+
+            return $this->redirect([
+                'controller' => 'Dashboard',
+                'action' => 'index'
+            ]);
+        }
 
 
-        $this->CodigoInvitacion
-            ->save($codigo);
+        /*
+         * Esta acción debe recibir información
+         * mediante POST.
+         *
+         * Así evitamos que alguien simplemente
+         * escriba la URL para intentar ejecutar
+         * el proceso.
+         */
+        if (!$this->request->is('post')) {
+
+            return $this->redirect([
+                'action' => 'ingresarCodigo'
+            ]);
+        }
 
 
+        /*
+         * Obtenemos el código enviado
+         * desde el formulario.
+         */
+        $codigoIngresado =
+            $this->request->getData('codigo');
 
-        $this->Flash->error(
-            'El código expiró.'
-        );
+
+        /*
+         * Buscamos el código en la tabla
+         * codigo_invitacion.
+         */
+        $codigo = $this->CodigoInvitacion
+            ->find()
+            ->where([
+                'codigo' => $codigoIngresado
+            ])
+            ->first();
 
 
-        return $this->redirect([
-            'action'=>'ingresarCodigo'
-        ]);
+        /*
+         * Si el código no existe.
+         */
+        if (!$codigo) {
 
+            $this->Flash->error(
+                'El código no existe.'
+            );
+
+            return $this->redirect([
+                'action' => 'ingresarCodigo'
+            ]);
+        }
+
+
+        /*
+         * Verificamos si el código
+         * ya fue utilizado.
+         */
+        if ($codigo->usado == true) {
+
+            $this->Flash->error(
+                'Este código ya fue utilizado.'
+            );
+
+            return $this->redirect([
+                'action' => 'ingresarCodigo'
+            ]);
+        }
+
+
+        /*
+         * Verificamos que el código
+         * continúe activo.
+         */
+        if ($codigo->estado !== 'ACTIVO') {
+
+            $this->Flash->error(
+                'Este código ya no está disponible.'
+            );
+
+            return $this->redirect([
+                'action' => 'ingresarCodigo'
+            ]);
+        }
+
+
+        /*
+         * Verificamos que el código
+         * no haya expirado.
+         */
+        if (FrozenTime::now() > $codigo->fecha_expiracion) {
+
+            /*
+             * Cambiamos el estado
+             * del código a EXPIRADO.
+             */
+            $codigo->estado = 'EXPIRADO';
+
+            $this->CodigoInvitacion
+                ->save($codigo);
+
+
+            $this->Flash->error(
+                'El código expiró.'
+            );
+
+            return $this->redirect([
+                'action' => 'ingresarCodigo'
+            ]);
+        }
+
+
+        /*
+         * ======================================================
+         *
+         * EL CÓDIGO ES VÁLIDO
+         *
+         * Ahora creamos la vinculación.
+         *
+         * ======================================================
+         */
+
+
+        /*
+         * Obtenemos el ID del usuario
+         * que inició sesión.
+         */
+        $idUsuario =
+            $usuario['id_usuario'];
+
+
+        /*
+         * Creamos una nueva vinculación.
+         */
+        $vinculacion =
+            $this->Vinculaciones
+            ->newEmptyEntity();
+
+
+        /*
+         * Guardamos el usuario que está
+         * utilizando el código.
+         */
+        $vinculacion->id_usuario =
+            $idUsuario;
+
+
+        /*
+         * Guardamos el especialista dueño
+         * del código.
+         */
+        $vinculacion->id_especialista =
+            $codigo->id_especialista;
+
+
+        /*
+         * Fecha en la que se realizó
+         * la vinculación.
+         */
+        $vinculacion->fecha_inicio =
+            FrozenTime::now();
+
+
+        /*
+         * Estado inicial de la vinculación.
+         */
+        $vinculacion->estado =
+            'ACTIVA';
+
+
+        /*
+         * Guardamos la vinculación.
+         */
+        if ($this->Vinculaciones->save($vinculacion)) {
+
+            /*
+             * Marcamos el código como utilizado.
+             */
+            $codigo->usado = true;
+
+            $codigo->estado = 'USADO';
+
+
+            /*
+             * Guardamos los cambios
+             * del código.
+             */
+            $this->CodigoInvitacion
+                ->save($codigo);
+
+
+            /*
+             * Mensaje de éxito.
+             */
+            $this->Flash->success(
+                'Te vinculaste correctamente.'
+            );
+
+
+            /*
+             * Regresamos al formulario
+             * de ingreso de código.
+             */
+            return $this->redirect([
+                'action' => 'ingresarCodigo'
+            ]);
+
+        } else {
+
+            /*
+             * Si ocurrió un problema
+             * al guardar la vinculación.
+             */
+            $this->Flash->error(
+                'No se pudo crear la vinculación.'
+            );
+
+            return $this->redirect([
+                'action' => 'ingresarCodigo'
+            ]);
+        }
     }
 
 
-
-    /*
-     * ===================================
+    /**
+     * ==========================================================
+     * MIS SOCIOS
+     * ==========================================================
      *
-     * AQUÍ YA SABEMOS QUE EL CÓDIGO SIRVE
+     * Esta sección solamente puede ser utilizada
+     * por un ESPECIALISTA.
      *
-     * Ahora creamos la vinculación.
-     *
-     * ===================================
+     * Muestra los usuarios que están vinculados
+     * con el especialista que inició sesión.
      */
+    public function misSocios()
+    {
+        /*
+         * Obtenemos el usuario actual.
+         */
+        $usuario = $this->usuarioActual();
 
 
-/*
- * Obtenemos el usuario
- * que inició sesión.
- */
-$idUsuario = $this->request
-    ->getSession()
-    ->read('Usuario.id_usuario');
+        /*
+         * SEGURIDAD:
+         *
+         * Solamente un especialista puede
+         * consultar sus socios.
+         */
+        if ($usuario['rol'] !== 'especialista') {
 
-/*
- * TEMPORAL idusuario 
- * Se reemplazará por el usuario autenticado
- * cuando implementemos el login con Authentication.
- */
+            $this->Flash->error(
+                'No tienes permiso para acceder a tus socios.'
+            );
 
-
-    /*
-     * Creamos una nueva vinculación.
-     */
-    $vinculacion =
-        $this->Vinculaciones
-        ->newEmptyEntity();
+            return $this->redirect([
+                'controller' => 'Dashboard',
+                'action' => 'index'
+            ]);
+        }
 
 
-
-    /*
-     * Guardamos la relación:
-     *
-     * Usuario
-     *
-     * +
-     *
-     * Especialista
-     */
-    $vinculacion->id_usuario =
-        $idUsuario;
+        /*
+         * Obtenemos el ID del usuario
+         * que inició sesión.
+         */
+        $idUsuario =
+            $usuario['id_usuario'];
 
 
-    $vinculacion->id_especialista =
-        $codigo->id_especialista;
+        /*
+         * Buscamos el registro de especialista
+         * relacionado con ese usuario.
+         */
+        $especialista = $this
+            ->fetchTable('Especialistas')
+            ->find()
+            ->where([
+                'id_usuario' => $idUsuario
+            ])
+            ->first();
 
 
-    $vinculacion->fecha_inicio =
-        FrozenTime::now();
+        /*
+         * Verificamos que realmente exista
+         * el perfil de especialista.
+         */
+        if (!$especialista) {
+
+            $this->Flash->error(
+                'No se encontró el perfil de especialista.'
+            );
+
+            return $this->redirect([
+                'controller' => 'Dashboard',
+                'action' => 'index'
+            ]);
+        }
 
 
-    $vinculacion->estado =
-        'ACTIVA';
+        /*
+         * Obtenemos el ID del especialista.
+         */
+        $idEspecialista =
+            $especialista->id_especialista;
 
 
+        /*
+         * Buscamos todas las vinculaciones
+         * pertenecientes al especialista.
+         *
+         * contain(['Usuarios']) hace que CakePHP
+         * también obtenga la información del usuario
+         * relacionado.
+         */
+        $socios = $this->Vinculaciones
+            ->find()
+            ->contain([
+                'Usuarios'
+            ])
+            ->where([
+                'Vinculaciones.id_especialista' =>
+                    $idEspecialista,
 
-    /*
-     * Guardamos la vinculación.
-     */
-if ($this->Vinculaciones->save($vinculacion)) {
-
-    $codigo->usado = true;
-    $codigo->estado = 'USADO';
-
-    $this->CodigoInvitacion->save($codigo);
-
-    $this->Flash->success('Te vinculaste correctamente.');
-
-    return $this->redirect([
-        'action' => 'ingresarCodigo'
-    ]);
-
-} else {
-
-    debug($vinculacion->getErrors());
-    die();
-
-}
+                'Vinculaciones.estado' =>
+                    'ACTIVA'
+            ])
+            ->all();
 
 
-
-    /*
-     * Si falla la creación.
-     */
-    $this->Flash->error(
-        'No se pudo crear la vinculación.'
-    );
-
-
-}
-/**
- * Muestra todos los socios vinculados
- * con un especialista.
- */
-public function misSocios()
-{
-
-    /*
-     * TEMPORAL
-     *
-     * Después este ID será obtenido
-     * del usuario que inició sesión.
-     */
-    $idUsuario = $this->request
-    ->getSession()
-    ->read('Usuario.id_usuario');
-
-$especialista = $this
-    ->fetchTable('Especialistas')
-    ->find()
-    ->where([
-        'id_usuario' => $idUsuario
-    ])
-    ->first();
-
-/*
- * Verificamos que realmente
- * exista un especialista.
- */
-if (!$especialista) {
-
-    $this->Flash->error(
-        'No tienes permisos para generar códigos.'
-    );
-
-    return $this->redirect('/');
-}
-
-$idEspecialista = $especialista->id_especialista;
-
-
-
-    /*
-     * Buscamos todas las vinculaciones
-     * pertenecientes al especialista.
-     *
-     * contain() le dice a CakePHP:
-     *
-     * "Además de la tabla vinculacion,
-     * también tráeme los datos
-     * del usuario."
-     */
-    $socios = $this->Vinculaciones
-        ->find()
-        ->contain([
-            'Usuarios'
-        ])
-        ->where([
-            'Vinculaciones.id_especialista' => $idEspecialista,
-            'Vinculaciones.estado' => 'ACTIVA'
-        ])
-        ->all();
-
-
-
-    /*
-     * Enviamos la información
-     * a la vista.
-     */
-    $this->set(compact('socios'));
-
-}
+        /*
+         * Enviamos los socios a la vista.
+         */
+        $this->set(compact('socios'));
+    }
 }
