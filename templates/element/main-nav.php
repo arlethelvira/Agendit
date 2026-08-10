@@ -198,17 +198,21 @@ $rol = $usuario['rol'] ?? null;
             </li>
     <?php endif; ?>
 
-            <li class="nav-item">
-                <a class="nav-link" href="apps-todo">
-                    <span class="nav-icon">
-                        <iconify-icon
-                            icon="iconamoon:ticket-duotone"
-                        ></iconify-icon>
-                    </span>
-                    <span class="nav-text"> Todo-dejo este para meli </span>
-                </a>
-            </li>
-
+            <?php if ($rol === 'usuario'): ?>
+<li class="nav-item">
+    <a class="nav-link" href="<?= $this->Url->build([
+        'controller' => 'Tareas',
+        'action' => 'calendario'
+    ]) ?>">
+        <span class="nav-icon">
+            <iconify-icon
+                icon="iconamoon:ticket-duotone"
+            ></iconify-icon>
+        </span>
+        <span class="nav-text"> Tareas </span>
+    </a>
+</li>
+<?php endif; ?>
 
 
 
