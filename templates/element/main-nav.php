@@ -121,7 +121,47 @@ $rol = $usuario['rol'] ?? null;
                 </div>
             </li>
             <?php endif; ?>
+<?php if ($rol === 'admin'): ?>
+            <li class="menu-title">Especialistas</li>
 
+            <li class="nav-item">
+                <a
+                    class="nav-link menu-arrow"
+                    href="#sidebarEcommerce"
+                    data-bs-toggle="collapse"
+                    role="button"
+                    aria-expanded="false"
+                    aria-controls="sidebarEcommerce"
+                >
+                    <span class="nav-icon">
+                        <iconify-icon
+                            icon="iconamoon:profile-circle-duotone"
+                        ></iconify-icon>
+                    </span>
+                    <span class="nav-text"> Especialistas </span>
+                </a>
+                <div class="collapse" id="sidebarEcommerce">
+                    <ul class="nav sub-navbar-nav">
+                <li class="sub-nav-item">
+                   <a
+                   class="sub-nav-link"
+                       href="<?= $this->Url->build([
+                       'controller' => 'Admin',
+                        'action' => 'index'
+                        ]) ?>"
+                                >
+                        Mis especialistas
+                          </a>
+                           </li>
+
+                       
+                        </li>
+
+
+                    </ul>
+                </div>
+            </li>
+            <?php endif; ?>
 
 
 <?php if ($rol === 'usuario'): ?>
