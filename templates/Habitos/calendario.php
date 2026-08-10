@@ -29,7 +29,11 @@ $this->assign('title', 'Schedule - Agendit');
                                 Da click en un día del calendario para crear un hábito en esa fecha,
                                 o da click en un hábito existente para editarlo.
                             </p>
-                          
+                            <div class="mb-3">
+                                <label class="form-label">id_usuario a mostrar</label>
+                                <input type="number" class="form-control" id="filtro-id-usuario" value="4">
+                                <div class="form-text">Temporal, mientras se conecta con el login real.</div>
+                            </div>
                         </div>
                         <!-- end col-->
 

@@ -4,6 +4,8 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use Cake\Http\Response;
+use Cake\Event\EventInterface;
+
 
 class TareasController extends AppController
 {
@@ -12,27 +14,15 @@ class TareasController extends AppController
         parent::initialize();
         $this->autoRender = false;
 
-        // TEMPORAL: mientras el login no dicte el flujo de este módulo,
-        // se permite el acceso sin bloquear por Authentication.
-        $this->Authentication->addUnauthenticatedActions([
-            'index', 'ver', 'agregar', 'editar', 'eliminar',
-            'marcarCompletada', 'marcarSubtareaCompletada', 'vista'
-        ]);
+        //$this->Authentication->addUnauthenticatedActions([
+        
     }
 
     private function getIdUsuarioActual(): int
-    {
-        $identity = $this->request->getAttribute('identity');
-        if ($identity) {
-            return (int)$identity->get('id_usuario');
-        }
-
-        $session = $this->request->getSession();
-        if (!$session->check('id_usuario')) {
-            $session->write('id_usuario', 1); // usuario de prueba
-        }
-        return (int)$session->read('id_usuario');
-    }
+{
+    $usuario = $this->request->getSession()->read('Usuario');
+    return (int)($usuario['id_usuario'] ?? 0);
+}
 
     private function json(array $data): Response
     {
@@ -102,7 +92,14 @@ class TareasController extends AppController
     public function editar(int $id): Response
     {
         $this->request->allowMethod(['post']);
-        $tarea = $this->Tareas->get($id);
+        $idUsuario = $this->getIdUsuarioActual();
+$tarea = $this->Tareas->find()
+    ->where(['id_tarea' => $id, 'id_usuario' => $idUsuario])
+    ->first();
+
+if (!$tarea) {
+    return $this->json(['exito' => false, 'mensaje' => 'Tarea no encontrada']);
+}
 
         if (!empty($tarea->id_especialista)) {
             return $this->json(['exito' => false, 'mensaje' => 'Esta tarea fue asignada por tu especialista y no puede editarse']);
@@ -132,7 +129,14 @@ class TareasController extends AppController
     public function eliminar(int $id): Response
     {
         $this->request->allowMethod(['post']);
-        $tarea = $this->Tareas->get($id);
+        $idUsuario = $this->getIdUsuarioActual();
+$tarea = $this->Tareas->find()
+    ->where(['id_tarea' => $id, 'id_usuario' => $idUsuario])
+    ->first();
+
+if (!$tarea) {
+    return $this->json(['exito' => false, 'mensaje' => 'Tarea no encontrada']);
+}
 
         if (!empty($tarea->id_especialista)) {
             return $this->json(['exito' => false, 'mensaje' => 'Esta tarea fue asignada por tu especialista y no puede eliminarse']);
@@ -203,4 +207,70 @@ class TareasController extends AppController
             $subtareasTable->save($subtarea);
         }
     }
+
+    public function beforeFilter(EventInterface $event){
+    parent::beforeFilter($event);
+
+    $usuario = $this->request->getSession()->read('Usuario');
+
+    if (!$usuario) {
+        return;
+    }
+
+    if (($usuario['rol'] ?? null) !== 'usuario') {
+        $this->Flash->error('No tienes permiso para acceder a las tareas.');
+        $this->redirect(['controller' => 'Dashboard', 'action' => 'index']);
+        return;
+    }
+
+    $this->request->allowMethod(['get', 'post', 'put', 'delete']);
+    }
+
+    // GET /tareas/calendario -> vista HTML del calendario
+public function calendario(): void
+{
+    $this->autoRender = true;
+    $this->set('categorias', $this->Tareas->Categorias->find()->all());
+}
+
+// GET /tareas/eventos -> tareas del usuario en formato FullCalendar
+public function eventos(): Response
+{
+    $idUsuario = $this->getIdUsuarioActual();
+
+    $tareas = $this->Tareas->find()
+        ->where(['id_usuario' => $idUsuario, 'estado' => 'activa'])
+        ->contain(['Categorias'])
+        ->all();
+
+    $eventos = [];
+    foreach ($tareas as $tarea) {
+        $color = $tarea->categoria ? $tarea->categoria->color : '#6c757d';
+
+        $evento = [
+            'id' => $tarea->id_tarea,
+            'title' => $tarea->titulo,
+            'backgroundColor' => $color,
+            'borderColor' => $color,
+            'extendedProps' => [
+                'completada' => !empty($tarea->fecha_completada),
+                'notas' => $tarea->notas,
+                'categoria' => $tarea->categoria ? $tarea->categoria->nombre : 'Sin categoría',
+            ],
+        ];
+
+        if ($tarea->fecha_limite) {
+            if ($tarea->hora_limite) {
+                $evento['start'] = $tarea->fecha_limite->format('Y-m-d') . 'T' . $tarea->hora_limite->format('H:i:s');
+                $evento['allDay'] = false;
+            } else {
+                $evento['start'] = $tarea->fecha_limite->format('Y-m-d');
+                $evento['allDay'] = true;
+            }
+            $eventos[] = $evento;
+        }
+    }
+
+    return $this->json(['exito' => true, 'datos' => $eventos]);
+}
 }
