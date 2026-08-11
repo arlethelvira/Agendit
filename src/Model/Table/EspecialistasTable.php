@@ -49,7 +49,8 @@ class EspecialistasTable extends Table
          * Psicólogo
          */
         $this->belongsTo('TipoEspecialistas', [
-            'foreignKey'=>'id_tipo'
+            'foreignKey'=>'id_tipo',
+            'joinType' => 'LEFT',
         ]);
 
         /*
