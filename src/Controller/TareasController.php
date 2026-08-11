@@ -44,7 +44,8 @@ class TareasController extends AppController
     public function vista(): void
     {
         $this->autoRender = true;
-        $this->set('categorias', $this->Tareas->Categorias->find()->all());
+        $idUsuario = $this->getIdUsuarioActual();
+        $this->set('categorias', $this->Tareas->Categorias->find('deUsuario', idUsuario: $idUsuario)->all());
     }
 
     // GET /tareas/ver/{id}
@@ -68,10 +69,22 @@ class TareasController extends AppController
         $this->request->allowMethod(['post']);
         $data = $this->request->getData();
 
+         $idCategoria = $data['id_categoria'] ?: null;
+
+         if ($idCategoria) {
+        $categoriaValida = $this->Tareas->Categorias->find()
+            ->where(['id_categoria' => $idCategoria, 'id_usuario' => $this->getIdUsuarioActual()])
+            ->first();
+
+        if (!$categoriaValida) {
+            return $this->json(['exito' => false, 'mensaje' => 'Categoría inválida']);
+        }
+    }
+
         $tarea = $this->Tareas->newEmptyEntity();
         $tarea = $this->Tareas->patchEntity($tarea, [
             'id_usuario' => $this->getIdUsuarioActual(),
-            'id_categoria' => $data['id_categoria'] ?: null,
+            'id_categoria' => $idCategoria,
             'titulo' => trim($data['titulo'] ?? ''),
             'notas' => trim($data['notas'] ?? '') ?: null,
             'fecha_limite' => $data['fecha_limite'] ?: null,
@@ -106,8 +119,20 @@ if (!$tarea) {
         }
 
         $data = $this->request->getData();
+
+        $idCategoria = $data['id_categoria'] ?: null;
+
+    if ($idCategoria) {
+        $categoriaValida = $this->Tareas->Categorias->find()
+            ->where(['id_categoria' => $idCategoria, 'id_usuario' => $idUsuario])
+            ->first();
+
+        if (!$categoriaValida) {
+            return $this->json(['exito' => false, 'mensaje' => 'Categoría inválida']);
+        }
+    }
         $tarea = $this->Tareas->patchEntity($tarea, [
-            'id_categoria' => $data['id_categoria'] ?: null,
+            'id_categoria' => $idCategoria,
             'titulo' => trim($data['titulo'] ?? ''),
             'notas' => trim($data['notas'] ?? '') ?: null,
             'fecha_limite' => $data['fecha_limite'] ?: null,
@@ -239,7 +264,8 @@ if (!$tarea) {
 public function calendario(): void
 {
     $this->autoRender = true;
-    $this->set('categorias', $this->Tareas->Categorias->find()->all());
+    $idUsuario = $this->getIdUsuarioActual();
+     $this->set('categorias', $this->Tareas->Categorias->find('deUsuario', idUsuario: $idUsuario)->all());
 }
 
 // GET /tareas/eventos -> tareas del usuario en formato FullCalendar
@@ -272,6 +298,7 @@ public function eventos(): Response
                 'completada' => !empty($tarea->fecha_completada),
                 'notas' => $tarea->notas,
                 'categoria' => $nombreCategoria,
+                'idCategoria' => $tarea->id_categoria,
                 'asignadaPorEspecialista' => (bool)$tarea->id_especialista,
             ],
         ];

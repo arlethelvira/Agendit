@@ -55,6 +55,19 @@ return function (RouteBuilder $routes): void {
         ]);
 
         // =========================================================
+// TAREAS / CALENDARIO
+// =========================================================
+
+        $builder->connect('/tareas', [
+    'controller' => 'Tareas',
+    'action' => 'vista'
+        ]);
+
+        $builder->connect('/tareas/{action}/*', [
+            'controller' => 'Tareas'
+        ]);
+
+        // =========================================================
         // VINCULACIONES
         // =========================================================
         //
