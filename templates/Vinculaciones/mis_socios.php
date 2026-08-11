@@ -121,11 +121,12 @@ con el especialista que inició sesión.
                         <!-- Botones -->
                         <td>
 
-                            <a href="#"
-                               class="btn btn-primary btn-sm">
-
+                            <a href="<?= $this->Url->build([
+                                'controller' => 'Vinculaciones',
+                                'action' => 'agendaSocio',
+                                    $socio->id_usuario
+                            ]) ?>" class="btn btn-primary btn-sm">
                                 Asignar tarea
-
                             </a>
 
 
