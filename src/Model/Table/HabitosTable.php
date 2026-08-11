@@ -29,11 +29,15 @@ class HabitosTable extends Table
     }
 
     public function beforeSave(EventInterface $event, EntityInterface $entity, ArrayObject $options): void
-    {
-        if ($entity->isNew() && empty($entity->fecha_creacion)) {
-            $entity->fecha_creacion = DateTime::now();
-        }
+{
+    if ($entity->isNew() && empty($entity->fecha_creacion)) {
+        $entity->fecha_creacion = DateTime::now();
     }
+
+    if ($entity->isNew() && empty($entity->creado_por)) {
+        $entity->creado_por = $entity->id_especialista ? 'ESPECIALISTA' : 'SOCIO';
+    }
+}
 
     public function validationDefault(Validator $validator): Validator
     {
@@ -68,6 +72,11 @@ class HabitosTable extends Table
         $validator
             ->integer('id_especialista')
             ->allowEmptyString('id_especialista');
+
+        $validator
+         ->scalar('creado_por')
+         ->inList('creado_por', ['SOCIO', 'ESPECIALISTA'])
+         ->allowEmptyString('creado_por');    
 
         return $validator;
     }

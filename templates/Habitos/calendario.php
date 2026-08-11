@@ -9,6 +9,14 @@ $this->assign('title', 'Schedule - Agendit');
 <!-- CSS específico de esta página (FullCalendar) -->
 <link href="/vendor/fullcalendar/main.min.css" rel="stylesheet" type="text/css" />
 
+<style>
+    .bg-purple {
+        background-color: #9C27B0 !important;
+        color: #fff;
+    }
+</style>
+
+
 <div class="container-xxl">
     <?= $this->element('page-title', array('title' => 'Schedule', 'subTitle' => 'Calendario de Hábitos')) ?>
 
@@ -101,6 +109,7 @@ $this->assign('title', 'Schedule - Agendit');
                                                 <option value="bg-warning">Amarillo</option>
                                                 <option value="bg-danger">Rojo</option>
                                                 <option value="bg-dark">Negro</option>
+                                                <option value="bg-purple">Morado</option>
                                             </select>
                                             <div class="invalid-feedback">
                                                 Selecciona un color

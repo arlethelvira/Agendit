@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use Cake\Event\EventInterface;
+use Cake\ORM\TableRegistry;
 
 /**
  * Habitos Controller
@@ -27,7 +28,7 @@ class HabitosController extends AppController
          * excepto calendario, que muestra
          * una vista HTML.
          */
-        if ($this->request->getParam('action') !== 'calendario') {
+        if (!in_array($this->request->getParam('action'), ['calendario', 'asignar'], true)) {
             $this->viewBuilder()->setClassName('Json');
         }
     }
@@ -71,31 +72,45 @@ class HabitosController extends AppController
 
 
         /*
-         * Verificamos el rol.
+         * Verificamos el rol según la acción.
          *
-         * El calendario y los hábitos
-         * pertenecen al usuario normal.
+         * "asignar" es exclusiva del especialista;
+         * el resto del módulo (calendario, CRUD)
+         * es exclusivo del usuario normal.
          */
-        if (($usuario['rol'] ?? null) !== 'usuario') {
+        $action = $this->request->getParam('action');
 
-            /*
-             * Si es especialista o admin,
-             * no tiene permiso para entrar
-             * a este módulo.
-             */
-            $this->Flash->error(
-                'No tienes permiso para acceder a los hábitos.'
-            );
+        if ($action === 'asignar') {
 
-            /*
-             * Regresamos al Dashboard.
-             */
-            $this->redirect([
-                'controller' => 'Dashboard',
-                'action' => 'index'
-            ]);
+            if (($usuario['rol'] ?? null) !== 'especialista') {
 
-            return;
+                $this->Flash->error(
+                    'No tienes permiso para acceder a esta acción.'
+                );
+
+                $this->redirect([
+                    'controller' => 'Dashboard',
+                    'action' => 'index'
+                ]);
+
+                return;
+            }
+
+        } else {
+
+            if (($usuario['rol'] ?? null) !== 'usuario') {
+
+                $this->Flash->error(
+                    'No tienes permiso para acceder a los hábitos.'
+                );
+
+                $this->redirect([
+                    'controller' => 'Dashboard',
+                    'action' => 'index'
+                ]);
+
+                return;
+            }
         }
 
 
@@ -110,7 +125,6 @@ class HabitosController extends AppController
             'delete'
         ]);
     }
-
 
     /**
      * Muestra el calendario de hábitos.
@@ -128,6 +142,169 @@ class HabitosController extends AppController
          */
     }
 
+    /**
+     * Permite que un especialista asigne
+     * un hábito a uno de sus socios vinculados.
+     *
+     * Acceso exclusivo para especialistas.
+     */
+    public function asignar($idUsuario = null)
+    {
+        $this->request->allowMethod([
+            'get',
+            'post'
+        ]);
+
+
+        /*
+         * Usuario actualmente en sesión
+         * (debe ser un especialista).
+         */
+        $usuario = $this->request
+            ->getSession()
+            ->read('Usuario');
+
+        $idUsuarioSesion = (int)$usuario['id_usuario'];
+
+
+        /*
+         * IMPORTANTE:
+         *
+         * id_especialista (tabla especialista) NO es
+         * lo mismo que id_usuario (tabla usuario).
+         * Buscamos el id_especialista real a partir
+         * del id_usuario de la sesión.
+         */
+        $especialista = TableRegistry::getTableLocator()
+            ->get('Especialistas')
+            ->find()
+            ->where(['id_usuario' => $idUsuarioSesion])
+            ->first();
+
+        if (!$especialista) {
+
+            $this->Flash->error(
+                'No se encontró tu perfil de especialista.'
+            );
+
+            $this->redirect([
+                'controller' => 'Dashboard',
+                'action' => 'index'
+            ]);
+
+            return;
+        }
+
+        $idEspecialista = (int)$especialista->id_especialista;
+
+
+        /*
+         * Determinamos el color del hábito según
+         * la especialidad del especialista, usando
+         * las mismas clases Bootstrap que maneja
+         * el calendario (bg-success, bg-primary, bg-purple).
+         */
+        $coloresPorTipo = [
+            1 => 'bg-success', // Nutriólogo
+            2 => 'bg-primary', // Coach
+            3 => 'bg-purple',  // Psicólogo
+        ];
+
+        $colorHabito = $coloresPorTipo[(int)$especialista->id_tipo] ?? 'bg-secondary';
+
+
+        /*
+         * Verificamos que el socio exista
+         * y esté realmente vinculado (activo)
+         * a este especialista antes de dejarlo
+         * asignar nada.
+         */
+        $vinculacion = TableRegistry::getTableLocator()
+            ->get('Vinculaciones')
+            ->find()
+            ->where([
+                'id_especialista' => $idEspecialista,
+                'id_usuario' => (int)$idUsuario,
+                'estado' => 'ACTIVA'
+            ])
+            ->first();
+
+        if (!$vinculacion) {
+
+            $this->Flash->error(
+                'Este usuario no está vinculado contigo.'
+            );
+
+            $this->redirect([
+                'controller' => 'Vinculaciones',
+                'action' => 'misSocios'
+            ]);
+
+            return;
+        }
+
+
+        /*
+         * Si es GET, solo mostramos el formulario.
+         */
+        if ($this->request->is('get')) {
+
+            $this->set([
+                'idUsuario' => (int)$idUsuario
+            ]);
+
+            return;
+        }
+
+
+        /*
+         * POST: creamos el hábito para el socio.
+         */
+        $habito = $this->Habitos->newEmptyEntity();
+
+        $habito = $this->Habitos->patchEntity(
+            $habito,
+            $this->request->getData()
+        );
+
+
+        /*
+         * El hábito pertenece al socio (usuario),
+         * pero queda registrado quién lo creó
+         * y qué especialista lo asignó.
+         */
+        $habito->id_usuario = (int)$idUsuario;
+        $habito->id_especialista = $idEspecialista;
+        $habito->creado_por = 'ESPECIALISTA';
+        $habito->color = $colorHabito;
+
+        if ($this->Habitos->save($habito)) {
+
+            $this->Flash->success(
+                'Hábito asignado correctamente.'
+            );
+
+            $this->redirect([
+                'controller' => 'Vinculaciones',
+                'action' => 'misSocios'
+            ]);
+
+            return;
+        }
+
+
+        /*
+         * Error al guardar: regresamos
+         * al formulario con los errores.
+         */
+        $this->Flash->error(
+            'No se pudo asignar el hábito.'
+        );
+
+        $this->set([
+            'idUsuario' => (int)$idUsuario
+        ]);
+    }
 
     /**
      * Devuelve los hábitos del usuario

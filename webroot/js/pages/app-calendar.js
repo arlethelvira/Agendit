@@ -117,7 +117,8 @@ class CalendarSchedule {
                     id_habito: habito.id_habito,
                     notas: habito.notas,
                     frecuencia: habito.frecuencia,
-                    color: habito.color
+                    color: habito.color,
+                    creado_por: habito.creado_por
                 }
             });
         };
@@ -172,10 +173,6 @@ class CalendarSchedule {
         this.formEvent.classList.remove("was-validated");
 
         this.newEventData = null;
-        this.btnDeleteEvent.style.display = "block";
-
-        this.modalTitle.textContent = "Editar hábito";
-        this.modal.show();
 
         this.selectedEvent = e.event;
 
@@ -192,15 +189,42 @@ class CalendarSchedule {
 
         document.getElementById("event-category").value =
             props.color;
+
+        /*
+         * Si el hábito fue asignado por un
+         * especialista, el socio solo puede
+         * verlo, no modificarlo.
+         */
+        const esSoloLectura = props.creado_por === "ESPECIALISTA";
+
+        document.getElementById("event-title").disabled = esSoloLectura;
+        document.getElementById("event-notas").disabled = esSoloLectura;
+        document.getElementById("event-frecuencia").disabled = esSoloLectura;
+        document.getElementById("event-category").disabled = esSoloLectura;
+
+        this.btnSaveEvent.style.display = esSoloLectura ? "none" : "block";
+        this.btnDeleteEvent.style.display = esSoloLectura ? "none" : "block";
+
+        this.modalTitle.textContent = esSoloLectura
+            ? "Hábito asignado por tu especialista (solo lectura)"
+            : "Editar hábito";
+
+        this.modal.show();
     }
 
     onSelect(e) {
         this.formEvent?.reset();
         this.formEvent?.classList.remove("was-validated");
 
+        document.getElementById("event-title").disabled = false;
+        document.getElementById("event-notas").disabled = false;
+        document.getElementById("event-frecuencia").disabled = false;
+        document.getElementById("event-category").disabled = false;
+
         this.selectedEvent = null;
         this.newEventData = e;
 
+        this.btnSaveEvent.style.display = "block";
         this.btnDeleteEvent.style.display = "none";
 
         this.modalTitle.textContent = "Nuevo hábito";
