@@ -636,4 +636,55 @@ public function generarCodigo()
          */
         $this->set(compact('socios'));
     }
+
+    /**
+     * ==========================================================
+     * AGENDA DEL SOCIO (para el especialista)
+     * ==========================================================
+     *
+     * Muestra el calendario del socio vinculado,
+     * respetando privacidad: solo se ven detalles
+     * de las tareas asignadas por ESTE especialista;
+     * las tareas propias del socio se ven como "Ocupado".
+     */
+    public function agendaSocio($idUsuario = null)
+    {
+        $usuario = $this->usuarioActual();
+
+        if ($usuario['rol'] !== 'especialista') {
+            $this->Flash->error('No tienes permiso para acceder a esta sección.');
+            return $this->redirect(['controller' => 'Dashboard', 'action' => 'index']);
+        }
+
+        $especialista = $this->fetchTable('Especialistas')
+            ->find()
+            ->where(['id_usuario' => $usuario['id_usuario']])
+            ->first();
+
+        if (!$especialista) {
+            $this->Flash->error('No se encontró el perfil de especialista.');
+            return $this->redirect(['controller' => 'Dashboard', 'action' => 'index']);
+        }
+
+        // Verificamos que el socio esté realmente vinculado con este especialista
+        $vinculacion = $this->Vinculaciones
+            ->find()
+            ->contain(['Usuarios'])
+            ->where([
+                'Vinculaciones.id_usuario' => (int)$idUsuario,
+                'Vinculaciones.id_especialista' => $especialista->id_especialista,
+                'Vinculaciones.estado' => 'ACTIVA'
+            ])
+            ->first();
+
+        if (!$vinculacion) {
+            $this->Flash->error('Este socio no está vinculado contigo.');
+            return $this->redirect(['action' => 'misSocios']);
+        }
+
+        $this->set([
+            'idSocio' => $vinculacion->id_usuario,
+            'nombreSocio' => $vinculacion->usuario->nombre . ' ' . $vinculacion->usuario->apellido_paterno,
+        ]);
+    }
 }
