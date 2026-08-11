@@ -20,12 +20,13 @@ use Cake\ORM\Entity;
 class Habito extends Entity
 {
     protected array $_accessible = [
-        'id_usuario' => true,
-        'id_especialista' => true,
-        'titulo' => true,
-        'notas' => true,
-        'frecuencia' => true,
-        'color' => true,
-        'fecha_creacion' => true,
-    ];
+    'id_usuario' => true,
+    'id_especialista' => true,
+    'titulo' => true,
+    'notas' => true,
+    'frecuencia' => true,
+    'color' => true,
+    'fecha_creacion' => true,
+    'creado_por' => true,
+   ];
 }

@@ -12,23 +12,6 @@ con el especialista que inició sesión.
  */
 
 ?>
-<?php if (empty($socios)): ?>
-
-    <div class="alert alert-info">
-
-        Aún no tienes socios vinculados.
-
-    </div>
-
-<?php else: ?>
-
-    <?php foreach ($socios as $socio): ?>
-
-        <!-- Aquí va la fila -->
-
-    <?php endforeach; ?>
-
-<?php endif; ?>
 
 <div class="container-fluid">
 
@@ -50,6 +33,16 @@ con el especialista que inició sesión.
 
     </div>
 
+
+    <?php if (empty($socios)): ?>
+
+        <div class="alert alert-info">
+
+            Aún no tienes socios vinculados.
+
+        </div>
+
+    <?php else: ?>
 
     <!-- Tabla -->
     <div class="card">
@@ -130,7 +123,7 @@ con el especialista que inició sesión.
                             </a>
 
 
-                            <a href="#"
+                            <a href="/habitos/asignar/<?= h($socio->usuario->id_usuario) ?>"
                                class="btn btn-success btn-sm">
 
                                 Asignar hábito
@@ -158,5 +151,7 @@ con el especialista que inició sesión.
         </div>
 
     </div>
+
+    <?php endif; ?>
 
 </div>

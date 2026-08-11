@@ -17,10 +17,14 @@ $this->assign('title', 'Calendario de Tareas - Agendit');
                 <div class="card-body">
                     <div class="row">
                         <div class="col-xl-3">
-                            <div class="d-grid">
+                            <div class="d-grid gap-2">
                                 <button type="button" class="btn btn-primary" id="btn-new-tarea">
                                     <i class="bx bx-plus fs-18 me-2"></i>
                                     Nueva Tarea
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#categorias-modal">
+                                    <i class="bx bx-palette fs-18 me-2"></i>
+                                    Mis categorías
                                 </button>
                             </div>
                             <br />
@@ -77,7 +81,23 @@ $this->assign('title', 'Calendario de Tareas - Agendit');
                                                 <?= h($cat->nombre) ?>
                                             </option>
                                         <?php endforeach; ?>
+                                        <option value="__nueva__">+ Nueva categoría</option>
                                     </select>
+
+                                    <!-- Mini-formulario inline, oculto hasta que elijas "+ Nueva categoría" -->
+                                    <div id="nueva-categoria-inline" class="d-none mt-2 p-2 border rounded">
+                                        <div class="row g-2">
+                                            <div class="col-7">
+                                                <input type="text" class="form-control form-control-sm" id="nueva-cat-nombre" placeholder="Nombre" maxlength="50">
+                                            </div>
+                                            <div class="col-3">
+                                                <input type="color" class="form-control form-control-sm form-control-color" id="nueva-cat-color" value="#6c757d">
+                                            </div>
+                                            <div class="col-2">
+                                                <button type="button" class="btn btn-sm btn-success w-100" id="btn-guardar-cat-inline">✓</button>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
 
                                 <div class="mb-3">
@@ -96,6 +116,33 @@ $this->assign('title', 'Calendario de Tareas - Agendit');
                                 </div>
                             </div>
                         </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal administrar categorías -->
+            <div class="modal fade" id="categorias-modal" tabindex="-1">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Mis categorías</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <ul class="list-group mb-3" id="lista-categorias"></ul>
+
+                            <div class="row g-2">
+                                <div class="col-7">
+                                    <input type="text" class="form-control" id="cat-modal-nombre" placeholder="Nombre" maxlength="50">
+                                </div>
+                                <div class="col-3">
+                                    <input type="color" class="form-control form-control-color" id="cat-modal-color" value="#6c757d">
+                                </div>
+                                <div class="col-2">
+                                    <button type="button" class="btn btn-primary w-100" id="btn-agregar-categoria">+</button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
