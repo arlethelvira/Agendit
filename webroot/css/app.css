@@ -16,6 +16,120 @@
   --bs-input-border-color: #d8dfe7;
   --bs-input-focus-border-color: #b0b0bb;
 }
+/* =========================================
+   ALERTAS AGENDIT
+========================================= */
+
+.agendit-alert {
+    position: fixed;
+
+    top: 25px;
+    right: 25px;
+
+    width: min(390px, calc(100% - 40px));
+
+    display: flex;
+    align-items: center;
+    gap: 14px;
+
+    padding: 16px 18px;
+
+    border-radius: 14px;
+
+    z-index: 99999;
+
+    box-shadow:
+        0 10px 30px rgba(0, 0, 0, 0.12);
+
+    animation: agenditAlertEntrada .3s ease;
+}
+
+
+/* ÉXITO */
+
+.agendit-alert-success {
+    background: #ecf8f1;
+
+    border: 1px solid #b7e4c7;
+
+    color: #246b45;
+}
+
+
+/* ICONO */
+
+.agendit-alert-icon {
+    width: 42px;
+    height: 42px;
+
+    flex-shrink: 0;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 50%;
+
+    background: #d8f3dc;
+
+    color: #2d8a57;
+
+    font-size: 25px;
+}
+
+
+/* CONTENIDO */
+
+.agendit-alert-content {
+    display: flex;
+    flex-direction: column;
+
+    flex-grow: 1;
+
+    font-size: 14px;
+}
+
+.agendit-alert-content strong {
+    font-size: 15px;
+
+    margin-bottom: 2px;
+
+    color: #1f6b43;
+}
+
+
+/* CERRAR */
+
+.agendit-alert-close {
+    border: none;
+    background: transparent;
+
+    color: #5c7c69;
+
+    font-size: 24px;
+
+    cursor: pointer;
+
+    padding: 0;
+
+    line-height: 1;
+}
+
+
+/* ANIMACIÓN */
+
+@keyframes agenditAlertEntrada {
+
+    from {
+        opacity: 0;
+        transform: translateX(30px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
 
 /* Color system - Dark Mode only */
 html[data-bs-theme=dark],

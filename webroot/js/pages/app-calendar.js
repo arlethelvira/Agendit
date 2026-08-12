@@ -64,17 +64,21 @@ class CalendarSchedule {
      * Trae los hábitos del usuario en sesión.
      */
     cargarHabitos() {
-        const a = this;
+    const a = this;
 
-        return this.fetchJson("/habitos")
-            .then(function (res) {
-                a.habitos = (res && res.data) ? res.data : [];
-            })
-            .catch(function (err) {
-                console.error("No se pudieron cargar los hábitos:", err);
-                a.habitos = [];
-            });
-    }
+    return this.fetchJson("/habitos/index")
+        .then(function (res) {
+            a.habitos = (res && res.data) ? res.data : [];
+        })
+        .catch(function (err) {
+            console.error(
+                "No se pudieron cargar los hábitos:",
+                err
+            );
+
+            a.habitos = [];
+        });
+}
 
     /*
      * Expande un hábito en ocurrencias de calendario
@@ -236,7 +240,61 @@ class CalendarSchedule {
     init() {
 
         const a = this;
+/* =========================================================
+   FRECUENCIA POR DÍAS ESPECÍFICOS
+========================================================= */
 
+const selectFrecuencia =
+    document.getElementById("event-frecuencia");
+
+const contenedorDias =
+    document.getElementById("contenedor-dias-especificos");
+
+const checkDias =
+    document.querySelectorAll(".dia-habito");
+
+const errorDias =
+    document.getElementById("error-dias-habito");
+
+
+/*
+ * Mostrar u ocultar los días
+ * según la frecuencia seleccionada.
+ */
+selectFrecuencia.addEventListener(
+    "change",
+    function () {
+
+        if (
+            selectFrecuencia.value ===
+            "dias_especificos"
+        ) {
+
+            contenedorDias.style.display =
+                "block";
+
+        } else {
+
+            contenedorDias.style.display =
+                "none";
+
+            errorDias.style.display =
+                "none";
+
+
+            /*
+             * Quitamos selecciones anteriores.
+             */
+            checkDias.forEach(function (check) {
+
+                check.checked = false;
+
+            });
+
+        }
+
+    }
+);
         /*
          * Cargamos los hábitos reales antes
          * de inicializar el calendario.
@@ -338,12 +396,93 @@ class CalendarSchedule {
                 return;
             }
 
-            const payload = {
-                titulo: document.getElementById("event-title").value,
-                notas: document.getElementById("event-notas").value,
-                frecuencia: document.getElementById("event-frecuencia").value,
-                color: document.getElementById("event-category").value
-            };
+            /* =========================================================
+   OBTENER FRECUENCIA
+========================================================= */
+
+let frecuenciaFinal =
+    selectFrecuencia.value;
+
+
+/*
+ * Si seleccionó días específicos,
+ * obtenemos únicamente los checks marcados.
+ */
+if (
+    selectFrecuencia.value ===
+    "dias_especificos"
+) {
+
+    const diasSeleccionados = [];
+
+    checkDias.forEach(function (check) {
+
+        if (check.checked) {
+
+            diasSeleccionados.push(
+                check.value
+            );
+
+        }
+
+    });
+
+
+    /*
+     * Debe seleccionar mínimo un día.
+     */
+    if (
+        diasSeleccionados.length === 0
+    ) {
+
+        errorDias.style.display =
+            "block";
+
+        return;
+
+    }
+
+
+    errorDias.style.display =
+        "none";
+
+
+    /*
+     * Ejemplo:
+     *
+     * lunes,miercoles,viernes
+     */
+    frecuenciaFinal =
+        diasSeleccionados.join(",");
+
+}
+
+
+/* =========================================================
+   PAYLOAD
+========================================================= */
+
+const payload = {
+
+    titulo:
+        document
+            .getElementById("event-title")
+            .value,
+
+    notas:
+        document
+            .getElementById("event-notas")
+            .value,
+
+    frecuencia:
+        frecuenciaFinal,
+
+    color:
+        document
+            .getElementById("event-category")
+            .value
+
+};
 
             /*
              * Editar hábito existente

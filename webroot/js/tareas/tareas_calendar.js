@@ -1,416 +1,1724 @@
 class TareasCalendar {
+
     constructor() {
-        this.modal = new bootstrap.Modal(document.getElementById("tarea-modal"), { backdrop: "static" });
-        this.calendarEl = document.getElementById("calendar-tareas");
-        this.form = document.getElementById("form-tarea-calendario");
-        this.btnNew = document.getElementById("btn-new-tarea");
-        this.btnDelete = document.getElementById("btn-delete-tarea");
-        this.modalTitle = document.getElementById("tarea-modal-title");
+
+        /* =====================================================
+           MODALES Y CALENDARIO
+        ===================================================== */
+
+        this.modal = new bootstrap.Modal(
+            document.getElementById("tarea-modal"),
+            {
+                backdrop: "static"
+            }
+        );
+
+        this.calendarEl =
+            document.getElementById("calendar-tareas");
+
+        this.form =
+            document.getElementById("form-tarea-calendario");
+
+        this.btnNew =
+            document.getElementById("btn-new-tarea");
+
+        this.btnDelete =
+            document.getElementById("btn-delete-tarea");
+
+        this.modalTitle =
+            document.getElementById("tarea-modal-title");
+
         this.calendarObj = null;
 
-        // Elementos del selector de categoría (modal de tarea)
-        this.selectCategoria = document.getElementById("tarea-categoria");
-        this.inlineForm = document.getElementById("nueva-categoria-inline");
-        this.inputNombre = document.getElementById("nueva-cat-nombre");
-        this.inputColor = document.getElementById("nueva-cat-color");
-        this.btnGuardarCat = document.getElementById("btn-guardar-cat-inline");
 
-        // Elementos del modal "Mis categorías"
-        this.listaCategorias = document.getElementById("lista-categorias");
-        this.catModalNombre = document.getElementById("cat-modal-nombre");
-        this.catModalColor = document.getElementById("cat-modal-color");
-        this.btnAgregarCategoria = document.getElementById("btn-agregar-categoria");
-        this.categoriasModalEl = document.getElementById("categorias-modal");
+        /* =====================================================
+           CONTROL PARA EVITAR DUPLICADOS
+        ===================================================== */
+
+        /*
+         * Evita que el formulario pueda enviarse
+         * varias veces mientras el primer POST
+         * todavía está procesándose.
+         */
+        this.guardandoTarea = false;
+
+        this.guardandoCategoria = false;
+
+
+        /* =====================================================
+           CATEGORÍAS - MODAL DE TAREA
+        ===================================================== */
+
+        this.selectCategoria =
+            document.getElementById("tarea-categoria");
+
+        this.inlineForm =
+            document.getElementById("nueva-categoria-inline");
+
+        this.inputNombre =
+            document.getElementById("nueva-cat-nombre");
+
+        this.inputColor =
+            document.getElementById("nueva-cat-color");
+
+        this.btnGuardarCat =
+            document.getElementById("btn-guardar-cat-inline");
+
+
+        /* =====================================================
+           MODAL MIS CATEGORÍAS
+        ===================================================== */
+
+        this.listaCategorias =
+            document.getElementById("lista-categorias");
+
+        this.catModalNombre =
+            document.getElementById("cat-modal-nombre");
+
+        this.catModalColor =
+            document.getElementById("cat-modal-color");
+
+        this.btnAgregarCategoria =
+            document.getElementById("btn-agregar-categoria");
+
+        this.categoriasModalEl =
+            document.getElementById("categorias-modal");
     }
 
-    cargarEventos(fetchInfo, successCallback, failureCallback) {
-        fetch('/tareas/eventos')
-            .then(res => res.json())
-            .then(data => {
-                if (data.exito) successCallback(data.datos);
-                else failureCallback();
-            })
-            .catch(() => failureCallback());
+
+    /* =========================================================
+       CSRF CAKEPHP
+    ========================================================= */
+
+    getCsrfToken() {
+
+        const match =
+            document.cookie.match(
+                /csrfToken=([^;]+)/
+            );
+
+        return match
+            ? decodeURIComponent(match[1])
+            : null;
     }
 
-    abrirModalNuevo(fechaSeleccionada) {
+
+    /* =========================================================
+       FETCH JSON
+    ========================================================= */
+
+    fetchJson(url, options = {}) {
+
+        const token =
+            this.getCsrfToken();
+
+        const headers = {
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+
+            ...(token
+                ? {
+                    "X-CSRF-Token": token
+                }
+                : {}),
+
+            ...(options.headers || {})
+        };
+
+
+        return fetch(
+            url,
+            {
+                ...options,
+                headers
+            }
+        )
+        .then(async response => {
+
+            const texto =
+                await response.text();
+
+            let data;
+
+            try {
+
+                data = texto
+                    ? JSON.parse(texto)
+                    : {};
+
+            } catch (error) {
+
+                console.error(
+                    "El servidor no devolvió JSON:",
+                    texto
+                );
+
+                throw new Error(
+                    "Respuesta inválida del servidor."
+                );
+            }
+
+
+            if (!response.ok) {
+
+                throw data;
+
+            }
+
+
+            return data;
+        });
+    }
+
+
+    /* =========================================================
+       MENSAJES BONITOS
+    ========================================================= */
+
+    mostrarMensaje(
+        mensaje,
+        tipo = "success"
+    ) {
+
+        let clase =
+            "alert-success";
+
+        let icono =
+            "ti-circle-check";
+
+
+        if (tipo === "error") {
+
+            clase =
+                "alert-danger";
+
+            icono =
+                "ti-circle-x";
+        }
+
+
+        if (tipo === "warning") {
+
+            clase =
+                "alert-warning";
+
+            icono =
+                "ti-alert-triangle";
+        }
+
+
+        const alerta =
+            document.createElement("div");
+
+
+        alerta.className = `
+            alert
+            ${clase}
+            shadow
+            position-fixed
+            fade
+            show
+        `;
+
+
+        alerta.style.top =
+            "85px";
+
+        alerta.style.right =
+            "25px";
+
+        alerta.style.zIndex =
+            "12000";
+
+        alerta.style.minWidth =
+            "300px";
+
+        alerta.style.maxWidth =
+            "420px";
+
+
+        alerta.innerHTML = `
+
+            <div
+                class="
+                    d-flex
+                    align-items-center
+                    gap-2
+                "
+            >
+
+                <i
+                    class="
+                        ti
+                        ${icono}
+                        fs-20
+                    "
+                ></i>
+
+                <div class="flex-grow-1">
+                    ${this.escaparHtml(mensaje)}
+                </div>
+
+                <button
+                    type="button"
+                    class="btn-close"
+                ></button>
+
+            </div>
+        `;
+
+
+        alerta
+            .querySelector(".btn-close")
+            .addEventListener(
+                "click",
+                () => alerta.remove()
+            );
+
+
+        document.body.appendChild(
+            alerta
+        );
+
+
+        setTimeout(
+            () => {
+
+                if (alerta.parentElement) {
+
+                    alerta.remove();
+
+                }
+
+            },
+            3500
+        );
+    }
+
+
+    escaparHtml(texto) {
+
+        const div =
+            document.createElement("div");
+
+        div.textContent =
+            texto ?? "";
+
+        return div.innerHTML;
+    }
+
+
+    /* =========================================================
+       CARGAR EVENTOS
+    ========================================================= */
+
+    cargarEventos(
+        fetchInfo,
+        successCallback,
+        failureCallback
+    ) {
+
+        this.fetchJson(
+            "/tareas/eventos"
+        )
+        .then(data => {
+
+            if (data.exito) {
+
+                /*
+                 * FullCalendar reemplaza los eventos
+                 * de esta fuente al ejecutar refetchEvents().
+                 *
+                 * NO usamos addEvent() manualmente.
+                 */
+                successCallback(
+                    data.datos || []
+                );
+
+            } else {
+
+                console.error(
+                    "Error al cargar eventos:",
+                    data.mensaje
+                );
+
+                failureCallback();
+            }
+
+        })
+        .catch(error => {
+
+            console.error(
+                "Error al cargar tareas:",
+                error
+            );
+
+            failureCallback();
+        });
+    }
+
+
+    /* =========================================================
+       NUEVA TAREA
+    ========================================================= */
+
+    abrirModalNuevo(
+        fechaSeleccionada = null
+    ) {
+
         this.form.reset();
-        this.form.classList.remove("was-validated");
-        document.getElementById("tarea-id").value = '';
-        document.getElementById("tarea-fecha").value = fechaSeleccionada || '';
-        this.inlineForm.classList.add("d-none");
-        this.btnDelete.style.display = "none";
-        this.modalTitle.textContent = "Nueva tarea";
+
+        this.form.classList.remove(
+            "was-validated"
+        );
+
+
+        document
+            .getElementById("tarea-id")
+            .value = "";
+
+
+        document
+            .getElementById("tarea-fecha")
+            .value =
+                fechaSeleccionada || "";
+
+
+        document
+            .getElementById("tarea-hora")
+            .value = "";
+
+
+        document
+            .getElementById("tarea-notas")
+            .value = "";
+
+
+        this.inlineForm.classList.add(
+            "d-none"
+        );
+
+
+        /*
+         * Si previamente seleccionó
+         * Nueva categoría, regresamos
+         * el select a un valor válido.
+         */
+        if (
+            this.selectCategoria.value ===
+            "__nueva__"
+        ) {
+
+            this.selectCategoria.value =
+                "";
+        }
+
+
+        this.btnDelete.style.display =
+            "none";
+
+
+        this.modalTitle.textContent =
+            "Nueva tarea";
+
+
         this.modal.show();
     }
 
-    abrirModalEditar(eventInfo) {
+
+    /* =========================================================
+       EDITAR TAREA
+    ========================================================= */
+
+    abrirModalEditar(
+        eventInfo
+    ) {
+
         this.form.reset();
-        this.form.classList.remove("was-validated");
-        this.inlineForm.classList.add("d-none");
 
-        const props = eventInfo.extendedProps;
+        this.form.classList.remove(
+            "was-validated"
+        );
 
-        console.log('DEBUG props:', props);
-    console.log('DEBUG idCategoria:', props.idCategoria);
 
-    
-        console.log('DEBUG props:', props);
-        document.getElementById("tarea-id").value = eventInfo.id;
-        document.getElementById("tarea-titulo").value = eventInfo.title;
-        document.getElementById("tarea-notas").value = props.notas || '';
-         document.getElementById("tarea-categoria").value = props.idCategoria || '';
-        document.getElementById("nueva-categoria-inline").classList.add("d-none");
+        this.inlineForm.classList.add(
+            "d-none"
+        );
 
-        const start = eventInfo.startStr;
+
+        const props =
+            eventInfo.extendedProps;
+
+
+        document
+            .getElementById("tarea-id")
+            .value =
+                eventInfo.id;
+
+
+        document
+            .getElementById("tarea-titulo")
+            .value =
+                eventInfo.title || "";
+
+
+        document
+            .getElementById("tarea-notas")
+            .value =
+                props.notas || "";
+
+
+        document
+            .getElementById("tarea-categoria")
+            .value =
+                props.idCategoria || "";
+
+
+        document
+            .getElementById(
+                "nueva-categoria-inline"
+            )
+            .classList.add(
+                "d-none"
+            );
+
+
+        /*
+         * Limpiamos la hora primero,
+         * por si anteriormente se editó
+         * una tarea con hora.
+         */
+        document
+            .getElementById("tarea-hora")
+            .value = "";
+
+
+        const start =
+            eventInfo.startStr;
+
+
         if (start) {
-            document.getElementById("tarea-fecha").value = start.substring(0, 10);
-            if (start.includes('T')) {
-                document.getElementById("tarea-hora").value = start.substring(11, 16);
+
+            document
+                .getElementById("tarea-fecha")
+                .value =
+                    start.substring(0, 10);
+
+
+            if (
+                start.includes("T")
+            ) {
+
+                document
+                    .getElementById("tarea-hora")
+                    .value =
+                        start.substring(
+                            11,
+                            16
+                        );
             }
         }
 
-        this.btnDelete.style.display = "block";
-        this.modalTitle.textContent = "Editar tarea";
+
+        /*
+         * Una tarea del especialista
+         * no se puede editar/eliminar
+         * desde el calendario personal.
+         */
+        const asignadaEspecialista =
+            props.asignadaPorEspecialista === true;
+
+
+        document
+            .getElementById("tarea-titulo")
+            .disabled =
+                asignadaEspecialista;
+
+
+        document
+            .getElementById("tarea-notas")
+            .disabled =
+                asignadaEspecialista;
+
+
+        document
+            .getElementById("tarea-fecha")
+            .disabled =
+                asignadaEspecialista;
+
+
+        document
+            .getElementById("tarea-hora")
+            .disabled =
+                asignadaEspecialista;
+
+
+        document
+            .getElementById("tarea-categoria")
+            .disabled =
+                asignadaEspecialista;
+
+
+        const botonGuardar =
+            this.form.querySelector(
+                'button[type="submit"]'
+            );
+
+
+        if (botonGuardar) {
+
+            botonGuardar.style.display =
+                asignadaEspecialista
+                    ? "none"
+                    : "";
+        }
+
+
+        this.btnDelete.style.display =
+            asignadaEspecialista
+                ? "none"
+                : "block";
+
+
+        this.modalTitle.textContent =
+            asignadaEspecialista
+                ? "Tarea asignada por tu especialista"
+                : "Editar tarea";
+
+
         this.modal.show();
     }
 
+
+    /* =========================================================
+       RESTAURAR CAMPOS DEL MODAL
+    ========================================================= */
+
+    habilitarFormulario() {
+
+        [
+            "tarea-titulo",
+            "tarea-notas",
+            "tarea-fecha",
+            "tarea-hora",
+            "tarea-categoria"
+        ]
+        .forEach(id => {
+
+            const elemento =
+                document.getElementById(id);
+
+            if (elemento) {
+
+                elemento.disabled =
+                    false;
+            }
+        });
+
+
+        const botonGuardar =
+            this.form.querySelector(
+                'button[type="submit"]'
+            );
+
+
+        if (botonGuardar) {
+
+            botonGuardar.style.display =
+                "";
+        }
+    }
+
+
+    /* =========================================================
+       GUARDAR TAREA
+    ========================================================= */
+
     guardarTarea() {
-        const idTarea = document.getElementById("tarea-id").value;
-        const url = idTarea ? `/tareas/editar/${idTarea}` : '/tareas/agregar';
 
-        const payload = {
-            titulo: document.getElementById("tarea-titulo").value,
-            fecha_limite: document.getElementById("tarea-fecha").value,
-            hora_limite: document.getElementById("tarea-hora").value,
-            id_categoria: document.getElementById("tarea-categoria").value,
-            notas: document.getElementById("tarea-notas").value,
-            subtareas: []
-        };
+        /*
+         * Protección principal contra
+         * múltiples POST.
+         */
+        if (this.guardandoTarea) {
 
-        fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        })
-            .then(res => res.json())
-            .then(data => {
-                if (data.exito) {
-                    this.modal.hide();
-                    this.calendarObj.refetchEvents();
-                } else {
-                    alert(data.mensaje);
-                }
-            });
-    }
-
-    eliminarTarea() {
-        const idTarea = document.getElementById("tarea-id").value;
-        if (!idTarea || !confirm('¿Eliminar esta tarea?')) return;
-
-        fetch(`/tareas/eliminar/${idTarea}`, { method: 'POST' })
-            .then(res => res.json())
-            .then(data => {
-                if (data.exito) {
-                    this.modal.hide();
-                    this.calendarObj.refetchEvents();
-                } else {
-                    alert(data.mensaje);
-                }
-            });
-    }
-
-    // ===== Gestión de categorías =====
-
-    initCategorias() {
-        const self = this;
-
-        // Dropdown dentro del modal de tarea: mostrar mini-form al elegir "+ Nueva categoría"
-        this.selectCategoria.addEventListener("change", function () {
-            if (this.value === "__nueva__") {
-                self.inlineForm.classList.remove("d-none");
-                self.inputNombre.focus();
-            } else {
-                self.inlineForm.classList.add("d-none");
-            }
-        });
-
-        // Guardar categoría desde el mini-form inline
-        this.btnGuardarCat.addEventListener("click", function () {
-            const nombre = self.inputNombre.value.trim();
-            const color = self.inputColor.value;
-            if (!nombre) {
-                self.inputNombre.focus();
-                return;
-            }
-
-            fetch('/categorias/agregar', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ nombre, color })
-            })
-                .then(res => res.json())
-                .then(data => {
-                    if (data.exito) {
-                        const nuevaOpcion = document.createElement("option");
-                        nuevaOpcion.value = data.datos.id_categoria;
-                        nuevaOpcion.textContent = data.datos.nombre;
-                        self.selectCategoria.insertBefore(nuevaOpcion, self.selectCategoria.lastElementChild);
-                        self.selectCategoria.value = data.datos.id_categoria;
-                        self.inlineForm.classList.add("d-none");
-                        self.inputNombre.value = "";
-                    } else {
-                        alert(data.mensaje);
-                    }
-                })
-                .catch(err => {
-                    console.error(err);
-                    alert('Ocurrió un error al crear la categoría.');
-                });
-        });
-
-        // Al abrir el modal "Mis categorías", cargamos la lista
-        this.categoriasModalEl.addEventListener("show.bs.modal", () => self.cargarListaCategorias());
-
-        // Agregar categoría desde el modal "Mis categorías"
-        this.btnAgregarCategoria.addEventListener("click", function () {
-            const nombre = self.catModalNombre.value.trim();
-            const color = self.catModalColor.value;
-            if (!nombre) return;
-
-            fetch('/categorias/agregar', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ nombre, color })
-            })
-                .then(res => res.json())
-                .then(data => {
-                    if (data.exito) {
-                        self.catModalNombre.value = "";
-                        self.cargarListaCategorias();
-                        self.recargarDropdownCategorias();
-                    } else {
-                        alert(data.mensaje);
-                    }
-                });
-        });
-    }
-
-    cargarListaCategorias() {
-        const self = this;
-        fetch('/categorias/index')
-            .then(res => res.json())
-            .then(data => {
-                self.listaCategorias.innerHTML = "";
-                if (!data.exito || data.datos.length === 0) {
-                    self.listaCategorias.innerHTML = '<li class="list-group-item text-muted">Aún no tienes categorías</li>';
-                    return;
-                }
-                data.datos.forEach(cat => {
-                    const li = document.createElement("li");
-                    li.className = "list-group-item d-flex justify-content-between align-items-center";
-                    li.innerHTML = `
-                        <span>
-                            <span class="d-inline-block rounded-circle me-2" style="width:12px;height:12px;background:${cat.color}"></span>
-                            ${cat.nombre}
-                        </span>
-                        <button class="btn btn-sm btn-outline-danger" data-id="${cat.id_categoria}">
-                            <i class="bx bx-trash"></i>
-                        </button>
-                    `;
-                    li.querySelector("button").addEventListener("click", () => self.eliminarCategoria(cat.id_categoria));
-                    self.listaCategorias.appendChild(li);
-                });
-            });
-    }
-
-    eliminarCategoria(id) {
-        if (!confirm("¿Eliminar esta categoría? Las tareas que la usan se quedarán sin categoría.")) return;
-
-        fetch(`/categorias/eliminar/${id}`, { method: 'POST' })
-            .then(res => res.json())
-            .then(data => {
-                if (data.exito) {
-                    this.cargarListaCategorias();
-                    this.recargarDropdownCategorias();
-                    this.calendarObj.refetchEvents();
-                } else {
-                    alert(data.mensaje);
-                }
-            });
-    }
-
-    recargarDropdownCategorias() {
-        fetch('/categorias/index')
-            .then(res => res.json())
-            .then(data => {
-                if (!data.exito) return;
-                const valorActual = this.selectCategoria.value;
-                this.selectCategoria.innerHTML = '<option value="">Sin categoría</option>';
-                data.datos.forEach(cat => {
-                    const opt = document.createElement("option");
-                    opt.value = cat.id_categoria;
-                    opt.textContent = cat.nombre;
-                    this.selectCategoria.appendChild(opt);
-                });
-                const nuevaOpt = document.createElement("option");
-                nuevaOpt.value = "__nueva__";
-                nuevaOpt.textContent = "+ Nueva categoría";
-                this.selectCategoria.appendChild(nuevaOpt);
-                this.selectCategoria.value = valorActual;
-            });
-    }
-
-    cargarCategorias() {
-        fetch('/categorias/index')
-            .then(res => res.json())
-            .then(data => {
-                if (data.exito) this.renderizarCategorias(data.datos);
-            })
-            .catch(err => console.error('Error al cargar categorías:', err));
-    }
-
-    renderizarCategorias(categorias) {
-        // Lista dentro del modal "Mis categorías"
-        const lista = document.getElementById('lista-categorias');
-        lista.innerHTML = '';
-        categorias.forEach(cat => {
-            const li = document.createElement('li');
-            li.className = 'list-group-item d-flex justify-content-between align-items-center';
-            li.innerHTML = `
-                <span><span class="badge me-2" style="background-color:${cat.color}">&nbsp;</span>${cat.nombre}</span>
-                <button type="button" class="btn btn-sm btn-outline-danger" onclick="tareasCalendarInstance.eliminarCategoria(${cat.id_categoria})">Eliminar</button>
-            `;
-            lista.appendChild(li);
-        });
-
-        // Select del modal de tarea
-        const select = document.getElementById('tarea-categoria');
-        const valorActual = select.value;
-        select.querySelectorAll('option:not([value=""]):not([value="__nueva__"])').forEach(opt => opt.remove());
-        const nuevaOption = select.querySelector('option[value="__nueva__"]');
-        categorias.forEach(cat => {
-            const opt = document.createElement('option');
-            opt.value = cat.id_categoria;
-            opt.textContent = cat.nombre;
-            select.insertBefore(opt, nuevaOption);
-        });
-        select.value = valorActual;
-    }
-
-    agregarCategoria(nombre, color, callback) {
-        if (!nombre.trim()) {
-            alert('Escribe un nombre para la categoría');
             return;
         }
 
-        fetch('/categorias/agregar', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ nombre, color })
+
+        const idTarea =
+            document
+                .getElementById("tarea-id")
+                .value;
+
+
+        const idCategoria =
+            document
+                .getElementById(
+                    "tarea-categoria"
+                )
+                .value;
+
+
+        /*
+         * __nueva__ nunca debe llegar
+         * al backend como categoría.
+         */
+        if (
+            idCategoria === "__nueva__"
+        ) {
+
+            this.mostrarMensaje(
+                "Primero guarda la nueva categoría.",
+                "warning"
+            );
+
+            return;
+        }
+
+
+        const url =
+            idTarea
+                ? `/tareas/editar/${idTarea}`
+                : "/tareas/agregar";
+
+
+        const payload = {
+
+            titulo:
+                document
+                    .getElementById(
+                        "tarea-titulo"
+                    )
+                    .value
+                    .trim(),
+
+            fecha_limite:
+                document
+                    .getElementById(
+                        "tarea-fecha"
+                    )
+                    .value,
+
+            hora_limite:
+                document
+                    .getElementById(
+                        "tarea-hora"
+                    )
+                    .value,
+
+            id_categoria:
+                idCategoria,
+
+            notas:
+                document
+                    .getElementById(
+                        "tarea-notas"
+                    )
+                    .value
+                    .trim(),
+
+            /*
+             * Este calendario no maneja
+             * subtareas por ahora.
+             */
+            subtareas: []
+        };
+
+
+        if (!payload.titulo) {
+
+            this.mostrarMensaje(
+                "El título es obligatorio.",
+                "warning"
+            );
+
+            return;
+        }
+
+
+        const botonGuardar =
+            this.form.querySelector(
+                'button[type="submit"]'
+            );
+
+
+        const textoAnterior =
+            botonGuardar
+                ? botonGuardar.innerHTML
+                : "";
+
+
+        this.guardandoTarea =
+            true;
+
+
+        if (botonGuardar) {
+
+            botonGuardar.disabled =
+                true;
+
+
+            botonGuardar.innerHTML = `
+
+                <span
+                    class="
+                        spinner-border
+                        spinner-border-sm
+                        me-1
+                    "
+                ></span>
+
+                Guardando...
+            `;
+        }
+
+
+        this.fetchJson(
+            url,
+            {
+                method: "POST",
+
+                body:
+                    JSON.stringify(
+                        payload
+                    )
+            }
+        )
+        .then(data => {
+
+            if (!data.exito) {
+
+                throw data;
+            }
+
+
+            /*
+             * PRIMERO cerramos el modal.
+             */
+            this.modal.hide();
+
+
+            /*
+             * Limpiamos el formulario.
+             */
+            this.form.reset();
+
+
+            /*
+             * Refetch reemplaza la fuente
+             * actual de eventos.
+             */
+            this.calendarObj.refetchEvents();
+
+
+            this.mostrarMensaje(
+                idTarea
+                    ? "Tarea actualizada correctamente."
+                    : "Tarea creada correctamente.",
+                "success"
+            );
+
         })
-            .then(res => res.json())
-            .then(data => {
-                if (data.exito) {
-                    this.cargarCategorias();
-                    if (callback) callback(data.datos);
-                } else {
-                    alert(data.mensaje);
-                }
-            })
-            .catch(err => console.error('Error al agregar categoría:', err));
-    }
+        .catch(error => {
 
-    eliminarCategoria(idCategoria) {
-        if (!confirm('¿Eliminar esta categoría? Las tareas que la usan quedarán sin categoría.')) return;
+            console.error(
+                "Error al guardar tarea:",
+                error
+            );
 
-        fetch(`/categorias/eliminar/${idCategoria}`, { method: 'POST' })
-            .then(res => res.json())
-            .then(data => {
-                if (data.exito) this.cargarCategorias();
-                else alert(data.mensaje);
-            })
-            .catch(err => console.error('Error al eliminar categoría:', err));
-    }
 
-    init() {
-        const self = this;
+            this.mostrarMensaje(
+                error.mensaje ||
+                "No fue posible guardar la tarea.",
+                "error"
+            );
 
-        this.calendarObj = new FullCalendar.Calendar(this.calendarEl, {
-            themeSystem: "bootstrap",
-            initialView: "dayGridMonth",
-            handleWindowResize: true,
-            height: window.innerHeight - 200,
-            headerToolbar: {
-                left: "prev,next today",
-                center: "title",
-                right: "dayGridMonth,timeGridWeek,timeGridDay,listMonth"
-            },
-            buttonText: {
-                today: "Hoy", month: "Mes", week: "Semana",
-                day: "Día", list: "Lista", prev: "Anterior", next: "Siguiente"
-            },
-            events: (info, success, failure) => this.cargarEventos(info, success, failure),
-            editable: false,
-            selectable: true,
+        })
+        .finally(() => {
 
-            dateClick: function (e) {
-                self.abrirModalNuevo(e.dateStr);
-            },
+            this.guardandoTarea =
+                false;
 
-            eventClick: function (e) {
-                self.abrirModalEditar(e.event);
+
+            if (botonGuardar) {
+
+                botonGuardar.disabled =
+                    false;
+
+
+                botonGuardar.innerHTML =
+                    textoAnterior;
             }
         });
+    }
+
+
+    /* =========================================================
+       ELIMINAR TAREA
+    ========================================================= */
+
+    eliminarTarea() {
+
+        const idTarea =
+            document
+                .getElementById("tarea-id")
+                .value;
+
+
+        if (!idTarea) {
+
+            return;
+        }
+
+
+        /*
+         * Por ahora conservamos confirm.
+         *
+         * Si quieres luego reutilizamos
+         * el modal bonito de /tareas.
+         */
+        if (
+            !window.confirm(
+                "¿Eliminar esta tarea?"
+            )
+        ) {
+
+            return;
+        }
+
+
+        this.fetchJson(
+            `/tareas/eliminar/${idTarea}`,
+            {
+                method: "POST"
+            }
+        )
+        .then(data => {
+
+            if (!data.exito) {
+
+                throw data;
+            }
+
+
+            this.modal.hide();
+
+            this.calendarObj.refetchEvents();
+
+
+            this.mostrarMensaje(
+                "Tarea eliminada correctamente.",
+                "success"
+            );
+
+        })
+        .catch(error => {
+
+            console.error(
+                "Error al eliminar tarea:",
+                error
+            );
+
+
+            this.mostrarMensaje(
+                error.mensaje ||
+                "No fue posible eliminar la tarea.",
+                "error"
+            );
+        });
+    }
+
+
+    /* =========================================================
+       CATEGORÍAS
+    ========================================================= */
+
+    initCategorias() {
+
+        const self = this;
+
+
+        /* -----------------------------------------------------
+           SELECT "+ NUEVA CATEGORÍA"
+        ----------------------------------------------------- */
+
+        this.selectCategoria
+            .addEventListener(
+                "change",
+                function () {
+
+                    if (
+                        this.value ===
+                        "__nueva__"
+                    ) {
+
+                        self.inlineForm
+                            .classList
+                            .remove(
+                                "d-none"
+                            );
+
+
+                        self.inputNombre
+                            .focus();
+
+                    } else {
+
+                        self.inlineForm
+                            .classList
+                            .add(
+                                "d-none"
+                            );
+                    }
+                }
+            );
+
+
+        /* -----------------------------------------------------
+           CREAR CATEGORÍA INLINE
+        ----------------------------------------------------- */
+
+        this.btnGuardarCat
+            .addEventListener(
+                "click",
+                () => {
+
+                    const nombre =
+                        this.inputNombre
+                            .value
+                            .trim();
+
+
+                    const color =
+                        this.inputColor
+                            .value;
+
+
+                    if (!nombre) {
+
+                        this.inputNombre.focus();
+
+                        return;
+                    }
+
+
+                    this.crearCategoria(
+                        nombre,
+                        color,
+                        (nuevaCategoria) => {
+
+                            this.inlineForm
+                                .classList
+                                .add(
+                                    "d-none"
+                                );
+
+
+                            this.inputNombre
+                                .value = "";
+
+
+                            /*
+                             * Recargamos el dropdown
+                             * y dejamos seleccionada
+                             * la nueva categoría.
+                             */
+                            this.recargarDropdownCategorias(
+                                nuevaCategoria.id_categoria
+                            );
+                        }
+                    );
+                }
+            );
+
+
+        /* -----------------------------------------------------
+           AL ABRIR MODAL "MIS CATEGORÍAS"
+        ----------------------------------------------------- */
+
+        this.categoriasModalEl
+            .addEventListener(
+                "show.bs.modal",
+                () => {
+
+                    this.cargarListaCategorias();
+
+                }
+            );
+
+
+        /* -----------------------------------------------------
+           CREAR CATEGORÍA DESDE MODAL
+        ----------------------------------------------------- */
+
+        this.btnAgregarCategoria
+            .addEventListener(
+                "click",
+                () => {
+
+                    const nombre =
+                        this.catModalNombre
+                            .value
+                            .trim();
+
+
+                    const color =
+                        this.catModalColor
+                            .value;
+
+
+                    if (!nombre) {
+
+                        this.catModalNombre
+                            .focus();
+
+                        return;
+                    }
+
+
+                    this.crearCategoria(
+                        nombre,
+                        color,
+                        () => {
+
+                            this.catModalNombre
+                                .value = "";
+
+
+                            this.cargarListaCategorias();
+
+                            this.recargarDropdownCategorias();
+                        }
+                    );
+                }
+            );
+    }
+
+
+    /* =========================================================
+       CREAR CATEGORÍA
+    ========================================================= */
+
+    crearCategoria(
+        nombre,
+        color,
+        callback = null
+    ) {
+
+        /*
+         * Evita doble clic / doble POST.
+         */
+        if (this.guardandoCategoria) {
+
+            return;
+        }
+
+
+        this.guardandoCategoria =
+            true;
+
+
+        this.fetchJson(
+            "/categorias/agregar",
+            {
+                method: "POST",
+
+                body:
+                    JSON.stringify({
+                        nombre,
+                        color
+                    })
+            }
+        )
+        .then(data => {
+
+            if (!data.exito) {
+
+                throw data;
+            }
+
+
+            this.mostrarMensaje(
+                "Categoría creada correctamente.",
+                "success"
+            );
+
+
+            if (callback) {
+
+                callback(
+                    data.datos
+                );
+            }
+
+        })
+        .catch(error => {
+
+            console.error(
+                "Error al crear categoría:",
+                error
+            );
+
+
+            this.mostrarMensaje(
+                error.mensaje ||
+                "No fue posible crear la categoría.",
+                "error"
+            );
+
+        })
+        .finally(() => {
+
+            this.guardandoCategoria =
+                false;
+
+        });
+    }
+
+
+    /* =========================================================
+       CARGAR LISTA DE CATEGORÍAS
+    ========================================================= */
+
+    cargarListaCategorias() {
+
+        this.fetchJson(
+            "/categorias/index"
+        )
+        .then(data => {
+
+            this.listaCategorias
+                .innerHTML = "";
+
+
+            if (
+                !data.exito ||
+                !data.datos ||
+                data.datos.length === 0
+            ) {
+
+                this.listaCategorias
+                    .innerHTML = `
+
+                        <li
+                            class="
+                                list-group-item
+                                text-muted
+                            "
+                        >
+                            Aún no tienes categorías
+                        </li>
+                    `;
+
+                return;
+            }
+
+
+            data.datos.forEach(
+                categoria => {
+
+                    const li =
+                        document.createElement(
+                            "li"
+                        );
+
+
+                    li.className = `
+                        list-group-item
+                        d-flex
+                        justify-content-between
+                        align-items-center
+                    `;
+
+
+                    li.innerHTML = `
+
+                        <span>
+
+                            <span
+                                class="
+                                    d-inline-block
+                                    rounded-circle
+                                    me-2
+                                "
+
+                                style="
+                                    width:12px;
+                                    height:12px;
+                                    background:
+                                    ${categoria.color};
+                                "
+                            ></span>
+
+                            ${this.escaparHtml(
+                                categoria.nombre
+                            )}
+
+                        </span>
+
+
+                        <button
+                            type="button"
+                            class="
+                                btn
+                                btn-sm
+                                btn-outline-danger
+                            "
+                        >
+
+                            <i class="bx bx-trash"></i>
+
+                        </button>
+                    `;
+
+
+                    li
+                        .querySelector("button")
+                        .addEventListener(
+                            "click",
+                            () => {
+
+                                this.eliminarCategoria(
+                                    categoria.id_categoria
+                                );
+
+                            }
+                        );
+
+
+                    this.listaCategorias
+                        .appendChild(li);
+                }
+            );
+        })
+        .catch(error => {
+
+            console.error(
+                "Error al cargar categorías:",
+                error
+            );
+        });
+    }
+
+
+    /* =========================================================
+       RECARGAR SELECT DE CATEGORÍAS
+    ========================================================= */
+
+    recargarDropdownCategorias(
+        seleccionarId = null
+    ) {
+
+        this.fetchJson(
+            "/categorias/index"
+        )
+        .then(data => {
+
+            if (!data.exito) {
+
+                return;
+            }
+
+
+            const valorActual =
+                seleccionarId ??
+                this.selectCategoria.value;
+
+
+            this.selectCategoria
+                .innerHTML = `
+
+                    <option value="">
+                        Sin categoría
+                    </option>
+                `;
+
+
+            data.datos.forEach(
+                categoria => {
+
+                    const option =
+                        document.createElement(
+                            "option"
+                        );
+
+
+                    option.value =
+                        categoria.id_categoria;
+
+
+                    option.textContent =
+                        categoria.nombre;
+
+
+                    this.selectCategoria
+                        .appendChild(
+                            option
+                        );
+                }
+            );
+
+
+            const opcionNueva =
+                document.createElement(
+                    "option"
+                );
+
+
+            opcionNueva.value =
+                "__nueva__";
+
+
+            opcionNueva.textContent =
+                "+ Nueva categoría";
+
+
+            this.selectCategoria
+                .appendChild(
+                    opcionNueva
+                );
+
+
+            if (
+                valorActual &&
+                valorActual !== "__nueva__"
+            ) {
+
+                this.selectCategoria.value =
+                    String(valorActual);
+
+            } else {
+
+                this.selectCategoria.value =
+                    "";
+            }
+        });
+    }
+
+
+    /* =========================================================
+       ELIMINAR CATEGORÍA
+    ========================================================= */
+
+    eliminarCategoria(
+        idCategoria
+    ) {
+
+        if (
+            !window.confirm(
+                "¿Eliminar esta categoría? Las tareas que la usan quedarán sin categoría."
+            )
+        ) {
+
+            return;
+        }
+
+
+        this.fetchJson(
+            `/categorias/eliminar/${idCategoria}`,
+            {
+                method: "POST"
+            }
+        )
+        .then(data => {
+
+            if (!data.exito) {
+
+                throw data;
+            }
+
+
+            this.cargarListaCategorias();
+
+            this.recargarDropdownCategorias();
+
+            this.calendarObj.refetchEvents();
+
+
+            this.mostrarMensaje(
+                "Categoría eliminada correctamente.",
+                "success"
+            );
+
+        })
+        .catch(error => {
+
+            console.error(
+                "Error al eliminar categoría:",
+                error
+            );
+
+
+            this.mostrarMensaje(
+                error.mensaje ||
+                "No fue posible eliminar la categoría.",
+                "error"
+            );
+        });
+    }
+
+
+    /* =========================================================
+       INICIALIZAR
+    ========================================================= */
+
+    init() {
+
+        const self =
+            this;
+
+
+        /* =====================================================
+           FULLCALENDAR
+        ===================================================== */
+
+        this.calendarObj =
+            new FullCalendar.Calendar(
+                this.calendarEl,
+                {
+
+                    themeSystem:
+                        "bootstrap",
+
+                    initialView:
+                        "dayGridMonth",
+
+                    handleWindowResize:
+                        true,
+
+                    height:
+                        window.innerHeight - 200,
+
+
+                    headerToolbar: {
+
+                        left:
+                            "prev,next today",
+
+                        center:
+                            "title",
+
+                        right:
+                            "dayGridMonth,timeGridWeek,timeGridDay,listMonth"
+                    },
+
+
+                    buttonText: {
+
+                        today:
+                            "Hoy",
+
+                        month:
+                            "Mes",
+
+                        week:
+                            "Semana",
+
+                        day:
+                            "Día",
+
+                        list:
+                            "Lista",
+
+                        prev:
+                            "Anterior",
+
+                        next:
+                            "Siguiente"
+                    },
+
+
+                    /*
+                     * Una sola fuente de eventos.
+                     */
+                    events:
+                        (
+                            info,
+                            success,
+                            failure
+                        ) => {
+
+                            this.cargarEventos(
+                                info,
+                                success,
+                                failure
+                            );
+                        },
+
+
+                    editable:
+                        false,
+
+                    selectable:
+                        true,
+
+
+                    dateClick:
+                        function (e) {
+
+                            /*
+                             * Nos aseguramos de restaurar
+                             * los campos por si antes abrió
+                             * una tarea del especialista.
+                             */
+                            self.habilitarFormulario();
+
+                            self.abrirModalNuevo(
+                                e.dateStr
+                            );
+                        },
+
+
+                    eventClick:
+                        function (e) {
+
+                            self.habilitarFormulario();
+
+                            self.abrirModalEditar(
+                                e.event
+                            );
+                        }
+                }
+            );
+
 
         this.calendarObj.render();
 
-        this.btnNew.addEventListener("click", () => this.abrirModalNuevo(null));
-        this.btnDelete.addEventListener("click", () => this.eliminarTarea());
 
-        this.form.addEventListener("submit", function (e) {
-            e.preventDefault();
-            if (self.form.checkValidity()) {
-                self.guardarTarea();
-            } else {
-                e.stopPropagation();
-                self.form.classList.add("was-validated");
-            }
-        });
+        /* =====================================================
+           NUEVA TAREA
+        ===================================================== */
 
+        this.btnNew
+            .addEventListener(
+                "click",
+                () => {
+
+                    this.habilitarFormulario();
+
+                    this.abrirModalNuevo(
+                        null
+                    );
+                }
+            );
+
+
+        /* =====================================================
+           ELIMINAR
+        ===================================================== */
+
+        this.btnDelete
+            .addEventListener(
+                "click",
+                () => {
+
+                    this.eliminarTarea();
+
+                }
+            );
+
+
+        /* =====================================================
+           SUBMIT
+        ===================================================== */
+
+        this.form
+            .addEventListener(
+                "submit",
+                (e) => {
+
+                    e.preventDefault();
+
+
+                    /*
+                     * Si ya hay un envío en curso,
+                     * bloqueamos completamente
+                     * cualquier segundo submit.
+                     */
+                    if (
+                        this.guardandoTarea
+                    ) {
+
+                        return;
+                    }
+
+
+                    if (
+                        this.form.checkValidity()
+                    ) {
+
+                        this.guardarTarea();
+
+                    } else {
+
+                        e.stopPropagation();
+
+                        this.form
+                            .classList
+                            .add(
+                                "was-validated"
+                            );
+                    }
+                }
+            );
+
+
+        /* =====================================================
+           CATEGORÍAS
+        ===================================================== */
+
+        /*
+         * IMPORTANTE:
+         *
+         * Solo inicializamos categorías UNA VEZ.
+         *
+         * En tu código anterior había listeners
+         * duplicados aquí y dentro de
+         * initCategorias().
+         */
         this.initCategorias();
 
-        this.cargarCategorias();
-
-        // Botón "+" del modal "Mis categorías"
-        document.getElementById('btn-agregar-categoria').addEventListener('click', () => {
-            const nombre = document.getElementById('cat-modal-nombre').value;
-            const color = document.getElementById('cat-modal-color').value;
-            this.agregarCategoria(nombre, color, () => {
-                document.getElementById('cat-modal-nombre').value = '';
-            });
-        });
-
-        // Select del modal de tarea: mostrar mini-formulario al elegir "+ Nueva categoría"
-        const selectCategoria = document.getElementById('tarea-categoria');
-        selectCategoria.addEventListener('change', function () {
-            const inline = document.getElementById('nueva-categoria-inline');
-            inline.classList.toggle('d-none', this.value !== '__nueva__');
-        });
-
-        // Botón "✓" del mini-formulario inline
-        document.getElementById('btn-guardar-cat-inline').addEventListener('click', () => {
-            const nombre = document.getElementById('nueva-cat-nombre').value;
-            const color = document.getElementById('nueva-cat-color').value;
-            this.agregarCategoria(nombre, color, (nuevaCat) => {
-                document.getElementById('nueva-categoria-inline').classList.add('d-none');
-                document.getElementById('nueva-cat-nombre').value = '';
-                selectCategoria.value = nuevaCat.id_categoria;
-            });
-        });
+        this.recargarDropdownCategorias();
     }
 }
 
-document.addEventListener("DOMContentLoaded", function () {
-    (new TareasCalendar()).init();
-});
+
+/* =========================================================
+   INICIALIZACIÓN ÚNICA
+========================================================= */
+
+document.addEventListener(
+    "DOMContentLoaded",
+    function () {
+
+        /*
+         * Si por accidente el archivo JS
+         * llega a cargarse dos veces en la página,
+         * evitamos crear dos instancias del
+         * calendario y dos listeners de submit.
+         */
+        if (
+            window.__tareasCalendarInicializado
+        ) {
+
+            console.warn(
+                "TareasCalendar ya estaba inicializado."
+            );
+
+            return;
+        }
+
+
+        window.__tareasCalendarInicializado =
+            true;
+
+
+        window.tareasCalendarInstance =
+            new TareasCalendar();
+
+
+        window.tareasCalendarInstance
+            .init();
+    }
+);

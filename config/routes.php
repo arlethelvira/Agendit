@@ -47,7 +47,7 @@ return function (RouteBuilder $routes): void {
 
         $builder->connect('/habitos', [
             'controller' => 'Habitos',
-            'action' => 'index'
+            'action' => 'vista'
         ]);
 
         $builder->connect('/habitos/{action}/*', [

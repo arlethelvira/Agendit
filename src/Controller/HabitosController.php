@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Model\Table\HabitosTable;
 use Cake\Event\EventInterface;
 use Cake\ORM\TableRegistry;
 
@@ -12,111 +13,142 @@ use Cake\ORM\TableRegistry;
  * Controlador encargado de administrar
  * los hábitos del usuario.
  *
- * También contiene la vista del calendario.
+ * También permite que un especialista
+ * asigne hábitos a sus socios vinculados.
  */
 class HabitosController extends AppController
 {
     /**
-     * Inicialización del controlador.
+     * Tabla Habitos.
+     */
+    private HabitosTable $Habitos;
+
+
+    /**
+     * ==========================================================
+     * INITIALIZE
+     * ==========================================================
      */
     public function initialize(): void
     {
         parent::initialize();
 
         /*
-         * Todas las acciones son JSON,
-         * excepto calendario, que muestra
-         * una vista HTML.
+         * Cargamos explícitamente la tabla Habitos.
          */
-        if (!in_array($this->request->getParam('action'), ['calendario', 'asignar'], true)) {
-            $this->viewBuilder()->setClassName('Json');
+        $this->Habitos =
+            $this->fetchTable('Habitos');
+
+
+        /*
+         * Estas acciones muestran una vista HTML.
+         *
+         * El resto funciona como JSON para
+         * JavaScript/AJAX.
+         */
+        $accionesHtml = [
+            'vista',
+            'calendario',
+            'asignar'
+        ];
+
+
+        if (
+            !in_array(
+                $this->request->getParam('action'),
+                $accionesHtml,
+                true
+            )
+        ) {
+            $this->viewBuilder()
+                ->setClassName('Json');
         }
     }
 
 
     /**
-     * Seguridad del controlador.
-     *
-     * Solamente los usuarios con rol
-     * "usuario" pueden utilizar este módulo.
+     * ==========================================================
+     * SEGURIDAD
+     * ==========================================================
      */
     public function beforeFilter(EventInterface $event)
     {
-        /*
-         * IMPORTANTE:
-         *
-         * Llamamos al beforeFilter del AppController
-         * para conservar la seguridad general
-         * de sesión iniciada.
-         */
         parent::beforeFilter($event);
 
 
         /*
-         * Obtenemos el usuario actualmente
-         * guardado en la sesión.
+         * Usuario de la sesión.
          */
-        $usuario = $this->request
-            ->getSession()
-            ->read('Usuario');
+        $usuario = $this->usuarioActual();
 
 
         /*
          * Si no existe sesión,
-         * AppController ya se encargó
-         * de redirigir al login.
+         * AppController ya se encarga.
          */
         if (!$usuario) {
             return;
         }
 
 
+        $accion =
+            $this->request->getParam('action');
+
+
         /*
-         * Verificamos el rol según la acción.
+         * ======================================================
+         * ASIGNAR
          *
-         * "asignar" es exclusiva del especialista;
-         * el resto del módulo (calendario, CRUD)
-         * es exclusivo del usuario normal.
+         * Solo especialista.
+         * ======================================================
          */
-        $action = $this->request->getParam('action');
+        if ($accion === 'asignar') {
 
-        if ($action === 'asignar') {
-
-            if (($usuario['rol'] ?? null) !== 'especialista') {
+            if (
+                ($usuario['rol'] ?? null)
+                !== 'especialista'
+            ) {
 
                 $this->Flash->error(
-                    'No tienes permiso para acceder a esta acción.'
+                    'No tienes permiso para asignar hábitos.'
                 );
 
-                $this->redirect([
+                return $this->redirect([
                     'controller' => 'Dashboard',
                     'action' => 'index'
                 ]);
-
-                return;
             }
 
-        } else {
+        }
 
-            if (($usuario['rol'] ?? null) !== 'usuario') {
+        /*
+         * ======================================================
+         * RESTO DEL MÓDULO
+         *
+         * Solo usuario/socio.
+         * ======================================================
+         */
+        else {
+
+            if (
+                ($usuario['rol'] ?? null)
+                !== 'usuario'
+            ) {
 
                 $this->Flash->error(
                     'No tienes permiso para acceder a los hábitos.'
                 );
 
-                $this->redirect([
+                return $this->redirect([
                     'controller' => 'Dashboard',
                     'action' => 'index'
                 ]);
-
-                return;
             }
         }
 
 
         /*
-         * Permitimos únicamente los métodos
-         * que realmente utiliza este controlador.
+         * Métodos utilizados por el módulo.
          */
         $this->request->allowMethod([
             'get',
@@ -126,27 +158,45 @@ class HabitosController extends AppController
         ]);
     }
 
+
     /**
-     * Muestra el calendario de hábitos.
+     * ==========================================================
+     * VISTA PRINCIPAL
+     * ==========================================================
      *
-     * Solamente usuarios normales
-     * pueden llegar hasta aquí.
+     * /habitos
+     *
+     * La página obtiene los hábitos mediante
+     * JavaScript desde /habitos/index.
+     */
+    public function vista(): void
+    {
+        /*
+         * No necesitamos cargar datos aquí.
+         */
+    }
+
+
+    /**
+     * ==========================================================
+     * CALENDARIO
+     * ==========================================================
      */
     public function calendario(): void
     {
         /*
-         * No necesitamos hacer nada más.
-         *
-         * La vista calendario.php carga
-         * los hábitos mediante JavaScript.
+         * El calendario carga sus hábitos
+         * mediante JavaScript.
          */
     }
 
+
     /**
-     * Permite que un especialista asigne
-     * un hábito a uno de sus socios vinculados.
+     * ==========================================================
+     * ASIGNAR HÁBITO A UN SOCIO
+     * ==========================================================
      *
-     * Acceso exclusivo para especialistas.
+     * Exclusivo para especialistas.
      */
     public function asignar($idUsuario = null)
     {
@@ -157,29 +207,56 @@ class HabitosController extends AppController
 
 
         /*
-         * Usuario actualmente en sesión
-         * (debe ser un especialista).
+         * ======================================================
+         * VALIDAR ID DEL SOCIO
+         * ======================================================
          */
-        $usuario = $this->request
-            ->getSession()
-            ->read('Usuario');
 
-        $idUsuarioSesion = (int)$usuario['id_usuario'];
+        if ($idUsuario === null) {
+
+            $this->Flash->error(
+                'No se especificó el socio.'
+            );
+
+            return $this->redirect([
+                'controller' => 'Vinculaciones',
+                'action' => 'misSocios'
+            ]);
+        }
+
+
+        $idUsuario =
+            (int)$idUsuario;
 
 
         /*
-         * IMPORTANTE:
-         *
-         * id_especialista (tabla especialista) NO es
-         * lo mismo que id_usuario (tabla usuario).
-         * Buscamos el id_especialista real a partir
-         * del id_usuario de la sesión.
+         * ======================================================
+         * ESPECIALISTA EN SESIÓN
+         * ======================================================
          */
-        $especialista = TableRegistry::getTableLocator()
-            ->get('Especialistas')
-            ->find()
-            ->where(['id_usuario' => $idUsuarioSesion])
-            ->first();
+
+        $usuario =
+            $this->usuarioActual();
+
+
+        $idUsuarioSesion =
+            (int)$usuario['id_usuario'];
+
+
+        /*
+         * Buscamos el registro real
+         * de especialista.
+         */
+        $especialista =
+            TableRegistry::getTableLocator()
+                ->get('Especialistas')
+                ->find()
+                ->where([
+                    'id_usuario' =>
+                        $idUsuarioSesion
+                ])
+                ->first();
+
 
         if (!$especialista) {
 
@@ -187,70 +264,95 @@ class HabitosController extends AppController
                 'No se encontró tu perfil de especialista.'
             );
 
-            $this->redirect([
+            return $this->redirect([
                 'controller' => 'Dashboard',
                 'action' => 'index'
             ]);
-
-            return;
         }
 
-        $idEspecialista = (int)$especialista->id_especialista;
+
+        $idEspecialista =
+            (int)$especialista
+                ->id_especialista;
 
 
         /*
-         * Determinamos el color del hábito según
-         * la especialidad del especialista, usando
-         * las mismas clases Bootstrap que maneja
-         * el calendario (bg-success, bg-primary, bg-purple).
+         * ======================================================
+         * COLOR SEGÚN ESPECIALIDAD
+         * ======================================================
+         *
+         * 1 = Nutriólogo
+         * 2 = Coach
+         * 3 = Psicólogo
          */
+
         $coloresPorTipo = [
-            1 => 'bg-success', // Nutriólogo
-            2 => 'bg-primary', // Coach
-            3 => 'bg-purple',  // Psicólogo
+            1 => 'bg-success',
+            2 => 'bg-primary',
+            3 => 'bg-purple'
         ];
 
-        $colorHabito = $coloresPorTipo[(int)$especialista->id_tipo] ?? 'bg-secondary';
+
+        $colorHabito =
+            $coloresPorTipo[
+                (int)$especialista->id_tipo
+            ]
+            ?? 'bg-secondary';
 
 
         /*
-         * Verificamos que el socio exista
-         * y esté realmente vinculado (activo)
-         * a este especialista antes de dejarlo
-         * asignar nada.
+         * ======================================================
+         * VERIFICAR VINCULACIÓN
+         * ======================================================
          */
-        $vinculacion = TableRegistry::getTableLocator()
-            ->get('Vinculaciones')
-            ->find()
-            ->where([
-                'id_especialista' => $idEspecialista,
-                'id_usuario' => (int)$idUsuario,
-                'estado' => 'ACTIVA'
-            ])
-            ->first();
 
+        $vinculacion =
+            TableRegistry::getTableLocator()
+                ->get('Vinculaciones')
+                ->find()
+                ->where([
+                    'id_especialista' =>
+                        $idEspecialista,
+
+                    'id_usuario' =>
+                        $idUsuario,
+
+                    'estado' =>
+                        'ACTIVA'
+                ])
+                ->first();
+
+
+        /*
+         * Solo puede asignar hábitos
+         * a socios vinculados activamente.
+         */
         if (!$vinculacion) {
 
             $this->Flash->error(
-                'Este usuario no está vinculado contigo.'
+                'Este socio no está vinculado contigo o la vinculación está inactiva.'
             );
 
-            $this->redirect([
+            return $this->redirect([
                 'controller' => 'Vinculaciones',
                 'action' => 'misSocios'
             ]);
-
-            return;
         }
 
 
         /*
-         * Si es GET, solo mostramos el formulario.
+         * ======================================================
+         * GET
+         * ======================================================
+         *
+         * Solo mostramos el formulario.
          */
+
         if ($this->request->is('get')) {
 
             $this->set([
-                'idUsuario' => (int)$idUsuario
+                'idUsuario' =>
+                    $idUsuario
             ]);
 
             return;
@@ -258,449 +360,658 @@ class HabitosController extends AppController
 
 
         /*
-         * POST: creamos el hábito para el socio.
+         * ======================================================
+         * POST
+         * ======================================================
+         *
+         * Construimos primero TODOS los datos.
+         *
+         * Esto es importante porque HabitosTable
+         * valida id_usuario, titulo, frecuencia
+         * y color.
          */
-        $habito = $this->Habitos->newEmptyEntity();
 
-        $habito = $this->Habitos->patchEntity(
-            $habito,
-            $this->request->getData()
+        $datos =
+            $this->request->getData();
+
+
+        /*
+         * Estos valores NO los decide
+         * el formulario.
+         *
+         * Los controla el servidor.
+         */
+        $datos['id_usuario'] =
+            $idUsuario;
+
+
+        $datos['id_especialista'] =
+            $idEspecialista;
+
+
+        $datos['creado_por'] =
+            'ESPECIALISTA';
+
+
+        $datos['color'] =
+            $colorHabito;
+
+
+        /*
+         * ======================================================
+         * CREAR ENTIDAD
+         * ======================================================
+         */
+
+        $habito =
+            $this->Habitos
+                ->newEmptyEntity();
+
+
+        /*
+         * Ahora patchEntity recibe también
+         * los campos obligatorios que nosotros
+         * acabamos de agregar.
+         */
+        $habito =
+            $this->Habitos
+                ->patchEntity(
+                    $habito,
+                    $datos
+                );
+
+
+        /*
+         * ======================================================
+         * GUARDAR
+         * ======================================================
+         */
+
+if ($this->Habitos->save($habito)) {
+
+    /*
+     * Guardamos temporalmente el mensaje
+     * para mostrar nuestra alerta personalizada.
+     */
+    $this->request
+        ->getSession()
+        ->write(
+            'alerta_agendit',
+            [
+                'tipo' => 'success',
+                'titulo' => '¡Hábito asignado!',
+                'mensaje' => 'El hábito se asignó correctamente a tu socio.'
+            ]
         );
 
-
-        /*
-         * El hábito pertenece al socio (usuario),
-         * pero queda registrado quién lo creó
-         * y qué especialista lo asignó.
-         */
-        $habito->id_usuario = (int)$idUsuario;
-        $habito->id_especialista = $idEspecialista;
-        $habito->creado_por = 'ESPECIALISTA';
-        $habito->color = $colorHabito;
-
-        if ($this->Habitos->save($habito)) {
-
-            $this->Flash->success(
-                'Hábito asignado correctamente.'
-            );
-
-            $this->redirect([
-                'controller' => 'Vinculaciones',
-                'action' => 'misSocios'
-            ]);
-
-            return;
-        }
+    return $this->redirect([
+        'controller' => 'Vinculaciones',
+        'action' => 'agendaSocio',
+        $idUsuario
+    ]);
+}
 
 
         /*
-         * Error al guardar: regresamos
-         * al formulario con los errores.
+         * ======================================================
+         * ERROR
+         * ======================================================
          */
+
         $this->Flash->error(
-            'No se pudo asignar el hábito.'
+            'No se pudo asignar el hábito. Revisa la información ingresada.'
         );
 
+
+        /*
+         * Dejamos disponible el ID para
+         * volver a mostrar el formulario.
+         */
         $this->set([
-            'idUsuario' => (int)$idUsuario
+            'idUsuario' =>
+                $idUsuario,
+
+            /*
+             * También mandamos la entidad
+             * por si después queremos mostrar
+             * errores directamente en la vista.
+             */
+            'habito' =>
+                $habito
         ]);
     }
 
+
     /**
+     * ==========================================================
+     * INDEX JSON
+     * ==========================================================
+     *
      * Devuelve los hábitos del usuario
      * actualmente autenticado.
-     *
-     * IMPORTANTE:
-     * Ya NO recibimos id_usuario desde
-     * la URL para decidir qué hábitos mostrar.
      */
     public function index()
     {
-        /*
-         * Obtenemos el usuario de la sesión.
-         */
-        $usuario = $this->request
-            ->getSession()
-            ->read('Usuario');
+        $usuario =
+            $this->usuarioActual();
 
 
-        /*
-         * Obtenemos su ID.
-         */
-        $idUsuario = (int)$usuario['id_usuario'];
+        $idUsuario =
+            (int)$usuario['id_usuario'];
 
 
-        /*
-         * Buscamos únicamente sus hábitos.
-         */
-        $habitos = $this->Habitos
-            ->find()
-            ->where([
-                'id_usuario' => $idUsuario
-            ])
-            ->orderBy([
-                'id_habito' => 'DESC'
-            ])
-            ->all();
+        $habitos =
+            $this->Habitos
+                ->find()
+                ->where([
+                    'id_usuario' =>
+                        $idUsuario
+                ])
+                ->orderBy([
+                    'id_habito' =>
+                        'DESC'
+                ])
+                ->all();
 
 
-        /*
-         * Enviamos la respuesta JSON.
-         */
         $this->set([
             'ok' => true,
             'data' => $habitos
         ]);
 
+
         $this->viewBuilder()
-            ->setOption('serialize', [
-                'ok',
-                'data'
-            ]);
+            ->setOption(
+                'serialize',
+                [
+                    'ok',
+                    'data'
+                ]
+            );
     }
 
 
     /**
-     * Muestra un hábito específico.
+     * ==========================================================
+     * VER UN HÁBITO
+     * ==========================================================
      */
     public function view($id = null)
     {
-        /*
-         * Usuario actual.
-         */
-        $usuario = $this->request
-            ->getSession()
-            ->read('Usuario');
+        $usuario =
+            $this->usuarioActual();
 
-        $idUsuario = (int)$usuario['id_usuario'];
+
+        $idUsuario =
+            (int)$usuario['id_usuario'];
 
 
         /*
-         * Buscamos el hábito por ID,
-         * PERO también verificamos que
-         * pertenezca al usuario actual.
+         * Verificamos también propiedad.
          */
-        $habito = $this->Habitos
-            ->find()
-            ->where([
-                'id_habito' => (int)$id,
-                'id_usuario' => $idUsuario
-            ])
-            ->first();
+        $habito =
+            $this->Habitos
+                ->find()
+                ->where([
+                    'id_habito' =>
+                        (int)$id,
+
+                    'id_usuario' =>
+                        $idUsuario
+                ])
+                ->first();
 
 
-        /*
-         * Si no existe o no pertenece
-         * al usuario, devolvemos 404.
-         */
         if (!$habito) {
 
             $this->response =
-                $this->response->withStatus(404);
+                $this->response
+                    ->withStatus(404);
+
 
             $this->set([
                 'ok' => false,
-                'error' => 'Hábito no encontrado'
+                'error' =>
+                    'Hábito no encontrado.'
             ]);
 
+
             $this->viewBuilder()
-                ->setOption('serialize', [
-                    'ok',
-                    'error'
-                ]);
+                ->setOption(
+                    'serialize',
+                    [
+                        'ok',
+                        'error'
+                    ]
+                );
 
             return;
         }
 
 
-        /*
-         * Hábito encontrado.
-         */
         $this->set([
             'ok' => true,
             'data' => $habito
         ]);
 
+
         $this->viewBuilder()
-            ->setOption('serialize', [
-                'ok',
-                'data'
-            ]);
+            ->setOption(
+                'serialize',
+                [
+                    'ok',
+                    'data'
+                ]
+            );
     }
 
 
     /**
-     * Crea un nuevo hábito.
+     * ==========================================================
+     * CREAR HÁBITO
+     * ==========================================================
+     *
+     * Creado por el propio socio.
      */
     public function add()
     {
-        $this->request->allowMethod(['post']);
+        $this->request
+            ->allowMethod([
+                'post'
+            ]);
+
+
+        $usuario =
+            $this->usuarioActual();
+
+
+        $idUsuario =
+            (int)$usuario['id_usuario'];
 
 
         /*
-         * Obtenemos el usuario de la sesión.
+         * Igual que en asignar(),
+         * agregamos primero los datos
+         * controlados por el backend.
          */
-        $usuario = $this->request
-            ->getSession()
-            ->read('Usuario');
+        $datos =
+            $this->request->getData();
 
 
-        $idUsuario = (int)$usuario['id_usuario'];
+        $datos['id_usuario'] =
+            $idUsuario;
+
+
+        $datos['id_especialista'] =
+            null;
+
+
+        $datos['creado_por'] =
+            'SOCIO';
 
 
         /*
-         * Creamos un nuevo hábito.
+         * Creamos entidad.
          */
-        $habito = $this->Habitos
-            ->newEmptyEntity();
+        $habito =
+            $this->Habitos
+                ->newEmptyEntity();
+
+
+        $habito =
+            $this->Habitos
+                ->patchEntity(
+                    $habito,
+                    $datos
+                );
 
 
         /*
-         * Copiamos los datos enviados
-         * desde el formulario.
+         * Guardar.
          */
-        $habito = $this->Habitos
-            ->patchEntity(
-                $habito,
-                $this->request->getData()
-            );
-
-
-        /*
-         * MUY IMPORTANTE:
-         *
-         * El usuario NO decide a qué usuario
-         * pertenece el hábito.
-         *
-         * Lo obtenemos de la sesión.
-         */
-        $habito->id_usuario = $idUsuario;
-
-
-        /*
-         * Guardamos.
-         */
-        if ($this->Habitos->save($habito)) {
+        if (
+            $this->Habitos
+                ->save($habito)
+        ) {
 
             $this->response =
-                $this->response->withStatus(201);
+                $this->response
+                    ->withStatus(201);
+
 
             $this->set([
                 'ok' => true,
                 'data' => $habito
             ]);
 
+
             $this->viewBuilder()
-                ->setOption('serialize', [
-                    'ok',
-                    'data'
-                ]);
+                ->setOption(
+                    'serialize',
+                    [
+                        'ok',
+                        'data'
+                    ]
+                );
 
             return;
         }
 
 
         /*
-         * Error al guardar.
+         * Error de validación.
          */
         $this->response =
-            $this->response->withStatus(400);
+            $this->response
+                ->withStatus(400);
+
 
         $this->set([
             'ok' => false,
-            'error' => $habito->getErrors()
+            'error' =>
+                $habito->getErrors()
         ]);
 
+
         $this->viewBuilder()
-            ->setOption('serialize', [
-                'ok',
-                'error'
-            ]);
+            ->setOption(
+                'serialize',
+                [
+                    'ok',
+                    'error'
+                ]
+            );
     }
 
 
     /**
-     * Edita un hábito existente.
+     * ==========================================================
+     * EDITAR HÁBITO
+     * ==========================================================
      */
     public function edit($id = null)
     {
-        $this->request->allowMethod([
-            'post',
-            'put'
-        ]);
+        $this->request
+            ->allowMethod([
+                'post',
+                'put'
+            ]);
 
 
-        /*
-         * Usuario actual.
-         */
-        $usuario = $this->request
-            ->getSession()
-            ->read('Usuario');
-
-        $idUsuario = (int)$usuario['id_usuario'];
+        $usuario =
+            $this->usuarioActual();
 
 
-        /*
-         * Buscamos el hábito verificando
-         * que pertenezca al usuario actual.
-         */
-        $habito = $this->Habitos
-            ->find()
-            ->where([
-                'id_habito' => (int)$id,
-                'id_usuario' => $idUsuario
-            ])
-            ->first();
+        $idUsuario =
+            (int)$usuario['id_usuario'];
 
 
-        /*
-         * Si no existe o pertenece
-         * a otro usuario.
-         */
+        $habito =
+            $this->Habitos
+                ->find()
+                ->where([
+                    'id_habito' =>
+                        (int)$id,
+
+                    'id_usuario' =>
+                        $idUsuario
+                ])
+                ->first();
+
+
         if (!$habito) {
 
             $this->response =
-                $this->response->withStatus(404);
+                $this->response
+                    ->withStatus(404);
+
 
             $this->set([
                 'ok' => false,
-                'error' => 'Hábito no encontrado'
+                'error' =>
+                    'Hábito no encontrado.'
             ]);
 
+
             $this->viewBuilder()
-                ->setOption('serialize', [
-                    'ok',
-                    'error'
-                ]);
+                ->setOption(
+                    'serialize',
+                    [
+                        'ok',
+                        'error'
+                    ]
+                );
 
             return;
         }
 
 
         /*
-         * Actualizamos los datos.
+         * IMPORTANTE:
+         *
+         * Un hábito asignado por un
+         * especialista es solo lectura
+         * para el socio.
          */
-        $habito = $this->Habitos
-            ->patchEntity(
-                $habito,
-                $this->request->getData()
-            );
+        if (
+            $habito->creado_por ===
+            'ESPECIALISTA'
+        ) {
+
+            $this->response =
+                $this->response
+                    ->withStatus(403);
+
+
+            $this->set([
+                'ok' => false,
+                'error' =>
+                    'No puedes modificar un hábito asignado por tu especialista.'
+            ]);
+
+
+            $this->viewBuilder()
+                ->setOption(
+                    'serialize',
+                    [
+                        'ok',
+                        'error'
+                    ]
+                );
+
+            return;
+        }
 
 
         /*
-         * Guardamos.
+         * Solo permitimos modificar
+         * los campos propios del hábito.
          */
-        if ($this->Habitos->save($habito)) {
+        $habito =
+            $this->Habitos
+                ->patchEntity(
+                    $habito,
+                    $this->request->getData(),
+                    [
+                        'fields' => [
+                            'titulo',
+                            'notas',
+                            'frecuencia',
+                            'color'
+                        ]
+                    ]
+                );
+
+
+        if (
+            $this->Habitos
+                ->save($habito)
+        ) {
 
             $this->set([
                 'ok' => true,
                 'data' => $habito
             ]);
 
+
             $this->viewBuilder()
-                ->setOption('serialize', [
-                    'ok',
-                    'data'
-                ]);
+                ->setOption(
+                    'serialize',
+                    [
+                        'ok',
+                        'data'
+                    ]
+                );
 
             return;
         }
 
 
-        /*
-         * Error.
-         */
         $this->response =
-            $this->response->withStatus(400);
+            $this->response
+                ->withStatus(400);
+
 
         $this->set([
             'ok' => false,
-            'error' => $habito->getErrors()
+            'error' =>
+                $habito->getErrors()
         ]);
 
+
         $this->viewBuilder()
-            ->setOption('serialize', [
-                'ok',
-                'error'
-            ]);
+            ->setOption(
+                'serialize',
+                [
+                    'ok',
+                    'error'
+                ]
+            );
     }
 
 
     /**
-     * Elimina un hábito.
+     * ==========================================================
+     * ELIMINAR HÁBITO
+     * ==========================================================
      */
     public function delete($id = null)
     {
-        $this->request->allowMethod([
-            'post',
-            'delete'
-        ]);
+        $this->request
+            ->allowMethod([
+                'post',
+                'delete'
+            ]);
 
 
-        /*
-         * Usuario actual.
-         */
-        $usuario = $this->request
-            ->getSession()
-            ->read('Usuario');
-
-        $idUsuario = (int)$usuario['id_usuario'];
+        $usuario =
+            $this->usuarioActual();
 
 
-        /*
-         * Buscamos el hábito verificando
-         * que pertenezca al usuario actual.
-         */
-        $habito = $this->Habitos
-            ->find()
-            ->where([
-                'id_habito' => (int)$id,
-                'id_usuario' => $idUsuario
-            ])
-            ->first();
+        $idUsuario =
+            (int)$usuario['id_usuario'];
 
 
-        /*
-         * Si no existe o pertenece
-         * a otro usuario.
-         */
+        $habito =
+            $this->Habitos
+                ->find()
+                ->where([
+                    'id_habito' =>
+                        (int)$id,
+
+                    'id_usuario' =>
+                        $idUsuario
+                ])
+                ->first();
+
+
         if (!$habito) {
 
             $this->response =
-                $this->response->withStatus(404);
+                $this->response
+                    ->withStatus(404);
+
 
             $this->set([
                 'ok' => false,
-                'error' => 'Hábito no encontrado'
+                'error' =>
+                    'Hábito no encontrado.'
             ]);
 
+
             $this->viewBuilder()
-                ->setOption('serialize', [
-                    'ok',
-                    'error'
-                ]);
+                ->setOption(
+                    'serialize',
+                    [
+                        'ok',
+                        'error'
+                    ]
+                );
 
             return;
         }
 
 
         /*
-         * Eliminamos el hábito.
+         * Los hábitos asignados por
+         * especialistas no pueden ser
+         * eliminados por el socio.
          */
+        if (
+            $habito->creado_por ===
+            'ESPECIALISTA'
+        ) {
+
+            $this->response =
+                $this->response
+                    ->withStatus(403);
+
+
+            $this->set([
+                'ok' => false,
+                'error' =>
+                    'No puedes eliminar un hábito asignado por tu especialista.'
+            ]);
+
+
+            $this->viewBuilder()
+                ->setOption(
+                    'serialize',
+                    [
+                        'ok',
+                        'error'
+                    ]
+                );
+
+            return;
+        }
+
+
         $eliminado =
-            $this->Habitos->delete($habito);
+            $this->Habitos
+                ->delete($habito);
 
 
-        /*
-         * Respondemos con JSON.
-         */
+        if (!$eliminado) {
+
+            $this->response =
+                $this->response
+                    ->withStatus(500);
+        }
+
+
         $this->set([
-            'ok' => (bool)$eliminado
+            'ok' =>
+                (bool)$eliminado
         ]);
 
+
         $this->viewBuilder()
-            ->setOption('serialize', [
-                'ok'
-            ]);
+            ->setOption(
+                'serialize',
+                [
+                    'ok'
+                ]
+            );
     }
 }
