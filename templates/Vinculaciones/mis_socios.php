@@ -1,3 +1,4 @@
+
 <!--
 ==================================================
 MIS SOCIOS
@@ -5,6 +6,7 @@ Esta vista muestra todos los usuarios vinculados
 con el especialista que inició sesión.
 ==================================================
 -->
+
 <?php
 
 /**
@@ -15,7 +17,10 @@ con el especialista que inició sesión.
 
 <div class="container-fluid">
 
-    <!-- Título -->
+    <!-- ==================================================
+         TÍTULO
+         ================================================== -->
+
     <div class="row mb-4">
 
         <div class="col">
@@ -36,122 +41,423 @@ con el especialista que inició sesión.
 
     <?php if (empty($socios)): ?>
 
+        <!-- ==================================================
+             SIN SOCIOS
+             ================================================== -->
+
         <div class="alert alert-info">
 
             Aún no tienes socios vinculados.
 
         </div>
 
+
     <?php else: ?>
 
-    <!-- Tabla -->
-    <div class="card">
 
-        <div class="card-body">
+        <!-- ==================================================
+             TABLA DE SOCIOS
+             ================================================== -->
 
-            <table class="table table-hover">
+        <div class="card">
 
-                <thead>
+            <div class="card-body">
 
-                    <tr>
+                <table class="table table-hover">
 
-                        <th>Nombre</th>
+                    <thead>
 
-                        <th>Correo</th>
+                        <tr>
 
-                        <th>Estado</th>
+                            <th>Nombre</th>
 
-                        <th>Acciones</th>
+                            <th>Correo</th>
 
-                    </tr>
+                            <th>Estado</th>
 
-                </thead>
+                            <th>Acciones</th>
 
-                <tbody>
+                        </tr>
 
-                <?php
-                /*
-                 * Recorremos todos los socios
-                 * enviados desde el controlador.
-                 */
-                foreach ($socios as $socio):
-                ?>
-
-                    <tr>
-
-                        <!-- Nombre completo -->
-                        <td>
-
-                            <?= h(
-                                $socio->usuario->nombre
-                                . ' '
-                                . $socio->usuario->apellido_paterno
-                            ) ?>
-
-                        </td>
+                    </thead>
 
 
-                        <!-- Email -->
-                        <td>
-
-                            <?= h($socio->usuario->email) ?>
-
-                        </td>
+                    <tbody>
 
 
-                        <!-- Estado -->
-                        <td>
-
-                            <span class="badge bg-success">
-
-                                <?= h($socio->estado) ?>
-
-                            </span>
-
-                        </td>
+                    <?php foreach ($socios as $socio): ?>
 
 
-                        <!-- Botones -->
-                        <td>
+                        <?php
 
-                            <a href="<?= $this->Url->build([
-                                'controller' => 'Vinculaciones',
-                                'action' => 'agendaSocio',
-                                    $socio->id_usuario
-                            ]) ?>" class="btn btn-primary btn-sm">
-                                Asignar tarea
-                            </a>
+                        /*
+                         * Determinamos si la vinculación
+                         * está activa.
+                         */
+                        $activo = $socio->estado === 'ACTIVA';
 
-
-                            <a href="/habitos/asignar/<?= h($socio->usuario->id_usuario) ?>"
-                               class="btn btn-success btn-sm">
-
-                                Asignar hábito
-
-                            </a>
+                        ?>
 
 
-                            <a href="#"
-                               class="btn btn-secondary btn-sm">
+                        <tr>
 
-                                Progreso
 
-                            </a>
+                            <!-- ==================================================
+                                 NOMBRE
+                                 ================================================== -->
 
-                        </td>
+                            <td>
 
-                    </tr>
+                                <?= h(
+                                    $socio->usuario->nombre
+                                    . ' '
+                                    . $socio->usuario->apellido_paterno
+                                ) ?>
 
-                <?php endforeach; ?>
+                            </td>
 
-                </tbody>
 
-            </table>
+                            <!-- ==================================================
+                                 CORREO
+                                 ================================================== -->
+
+                            <td>
+
+                                <?= h(
+                                    $socio->usuario->email
+                                ) ?>
+
+                            </td>
+
+
+                            <!-- ==================================================
+                                 ESTADO
+                                 ================================================== -->
+
+                            <td>
+
+                                <?php if ($activo): ?>
+
+                                    <span class="badge bg-success">
+                                        Activa
+                                    </span>
+
+                                <?php else: ?>
+
+                                    <span class="badge bg-secondary">
+                                        Inactiva
+                                    </span>
+
+                                <?php endif; ?>
+
+                            </td>
+
+
+                            <!-- ==================================================
+                                 ACCIONES
+                                 ================================================== -->
+
+                            <td>
+
+
+                                <!-- ==================================================
+                                     ASIGNAR TAREA
+                                     ================================================== -->
+
+                                <?php if ($activo): ?>
+
+                                    <a
+                                        href="<?= $this->Url->build([
+                                            'controller' => 'Vinculaciones',
+                                            'action' => 'agendaSocio',
+                                            $socio->id_usuario
+                                        ]) ?>"
+                                        class="btn btn-primary btn-sm">
+
+                                        Asignar tarea
+
+                                    </a>
+
+                                <?php else: ?>
+
+                                    <button
+                                        type="button"
+                                        class="btn btn-primary btn-sm"
+                                        onclick="mostrarSocioInactivo()">
+
+                                        Asignar tarea
+
+                                    </button>
+
+                                <?php endif; ?>
+
+
+                                <!-- ==================================================
+                                     ASIGNAR HÁBITO
+                                     ================================================== -->
+
+                                <?php if ($activo): ?>
+
+                                    <a
+                                        href="/habitos/asignar/<?= h($socio->usuario->id_usuario) ?>"
+                                        class="btn btn-success btn-sm">
+
+                                        Asignar hábito
+
+                                    </a>
+
+                                <?php else: ?>
+
+                                    <button
+                                        type="button"
+                                        class="btn btn-success btn-sm"
+                                        onclick="mostrarSocioInactivo()">
+
+                                        Asignar hábito
+
+                                    </button>
+
+                                <?php endif; ?>
+
+
+                                <!-- ==================================================
+                                     PROGRESO
+                                     ================================================== -->
+
+<a
+    href="<?= $this->Url->build([
+        'controller' => 'Vinculaciones',
+        'action' => 'progresoSocio',
+        $socio->id_usuario
+    ]) ?>"
+    class="btn btn-secondary btn-sm"
+>
+    <i class="ti ti-chart-bar me-1"></i>
+    Progreso
+</a>
+
+
+                                <!-- ==================================================
+                                     DAR DE BAJA / ACTIVAR
+                                     ================================================== -->
+
+                                <?php
+
+                                /*
+                                 * URL que utilizaremos para cambiar
+                                 * el estado de la vinculación.
+                                 */
+                                $urlEstado = $this->Url->build([
+                                    'controller' => 'Vinculaciones',
+                                    'action' => 'cambiarEstado',
+                                    $socio->id_vinculacion
+                                ]);
+
+                                ?>
+
+
+                                <?php if ($activo): ?>
+
+                                    <button
+                                        type="button"
+                                        class="btn btn-danger btn-sm"
+                                        onclick="confirmarCambioEstado(
+                                            '<?= h($urlEstado) ?>',
+                                            'baja'
+                                        )">
+
+                                        Dar de baja
+
+                                    </button>
+
+                                <?php else: ?>
+
+                                    <button
+                                        type="button"
+                                        class="btn btn-outline-success btn-sm"
+                                        onclick="confirmarCambioEstado(
+                                            '<?= h($urlEstado) ?>',
+                                            'activar'
+                                        )">
+
+                                        Activar
+
+                                    </button>
+
+                                <?php endif; ?>
+
+
+                            </td>
+
+
+                        </tr>
+
+
+                    <?php endforeach; ?>
+
+
+                    </tbody>
+
+                </table>
+
+            </div>
 
         </div>
 
-    </div>
 
     <?php endif; ?>
 
+
 </div>
+
+
+<!-- ==================================================
+     SWEETALERT2
+     Ventanas de confirmación de Agendit
+     ================================================== -->
+
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+
+<script>
+
+/*
+ * ==================================================
+ * CONFIRMAR CAMBIO DE ESTADO
+ * ==================================================
+ *
+ * Muestra una ventana personalizada para:
+ *
+ * - Dar de baja
+ * - Activar
+ *
+ * Ya no utiliza el confirm() del navegador.
+ */
+function confirmarCambioEstado(url, accion)
+{
+
+    /*
+     * ==================================================
+     * DAR DE BAJA
+     * ==================================================
+     */
+
+    if (accion === 'baja') {
+
+        Swal.fire({
+
+            title: '¿Dar de baja a este socio?',
+
+            text: 'El socio ya no podrá recibir tareas ni hábitos mientras esté inactivo.',
+
+            icon: 'warning',
+
+            showCancelButton: true,
+
+            confirmButtonText: 'Sí, dar de baja',
+
+            cancelButtonText: 'Cancelar',
+
+            reverseButtons: true,
+
+            buttonsStyling: true,
+
+            confirmButtonColor: '#dc3545',
+
+            cancelButtonColor: '#6c757d'
+
+        }).then((resultado) => {
+
+            if (resultado.isConfirmed) {
+
+                /*
+                 * Redirigimos al método
+                 * cambiarEstado().
+                 */
+                window.location.href = url;
+
+            }
+
+        });
+
+    }
+
+
+    /*
+     * ==================================================
+     * ACTIVAR
+     * ==================================================
+     */
+
+    else {
+
+        Swal.fire({
+
+            title: '¿Activar a este socio?',
+
+            text: 'El socio podrá volver a recibir tareas y hábitos.',
+
+            icon: 'question',
+
+            showCancelButton: true,
+
+            confirmButtonText: 'Sí, activar',
+
+            cancelButtonText: 'Cancelar',
+
+            reverseButtons: true,
+
+            buttonsStyling: true,
+
+            confirmButtonColor: '#198754',
+
+            cancelButtonColor: '#6c757d'
+
+        }).then((resultado) => {
+
+            if (resultado.isConfirmed) {
+
+                /*
+                 * Redirigimos al método
+                 * cambiarEstado().
+                 */
+                window.location.href = url;
+
+            }
+
+        });
+
+    }
+
+}
+
+
+/*
+ * ==================================================
+ * SOCIO INACTIVO
+ * ==================================================
+ *
+ * Mensaje que aparece al intentar asignar
+ * una tarea o hábito a un socio inactivo.
+ */
+function mostrarSocioInactivo()
+{
+
+    Swal.fire({
+
+        title: 'Socio inactivo',
+
+        text: 'No puedes asignarle tareas ni hábitos porque actualmente está inactivo.',
+
+        icon: 'info',
+
+        confirmButtonText: 'Entendido',
+
+        confirmButtonColor: '#198754'
+
+    });
+
+}
+
+</script>
+

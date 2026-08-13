@@ -6,6 +6,11 @@
     <?= $this->element('title-meta', ['title' => 'Registro Especialista']) ?>
 
     <?= $this->element('head-css') ?>
+    <style>
+    .authentication-bg {
+        background: #3a5556 !important;
+    }
+</style>
 
 </head>
 

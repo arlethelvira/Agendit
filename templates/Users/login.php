@@ -6,6 +6,11 @@
     <?= $this->element('title-meta', ['title' => 'Iniciar sesión']) ?>
 
     <?= $this->element('head-css') ?>
+<style>
+    .authentication-bg {
+        background: #3a5556 !important;
+    }
+</style>
 
 </head>
 
@@ -31,7 +36,7 @@
                                 <div class="auth-page-sidebar">
 
                                     <img
-                                        src="/images/logoAgendit.png"
+                                        src="/images/chat.png"
                                         class="img-fluid"
                                         alt="Login Agendit"
                                     >

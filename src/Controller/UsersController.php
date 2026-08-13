@@ -164,7 +164,67 @@ public function login()
      * Después podremos enviar
      * a cada rol a un panel distinto.
      */
-    return $this->redirect('/');
+   /*
+ * Redirigimos según el rol del usuario.
+ */
+switch ($usuario->rol) {
+
+    /*
+     * Usuario normal:
+     * Dashboard de tareas y hábitos.
+     */
+    case 'usuario':
+
+        return $this->redirect([
+            'controller' => 'Dashboard',
+            'action' => 'index'
+        ]);
+
+
+    /*
+     * Especialista:
+     * Por ahora lo enviamos a sus socios.
+     *
+     * Después crearemos su propio dashboard.
+     */
+    case 'especialista':
+
+        return $this->redirect([
+            'controller' => 'Vinculaciones',
+            'action' => 'misSocios'
+        ]);
+
+
+    /*
+     * Administrador:
+     * Panel de especialistas.
+     */
+    case 'admin':
+
+        return $this->redirect([
+            'controller' => 'Admin',
+            'action' => 'index'
+        ]);
+
+
+    /*
+     * Si existe un rol inesperado.
+     */
+    default:
+
+        $this->request
+            ->getSession()
+            ->destroy();
+
+        $this->Flash->error(
+            'El tipo de usuario no es válido.'
+        );
+
+        return $this->redirect([
+            'controller' => 'Users',
+            'action' => 'login'
+        ]);
+}
 }
 
 

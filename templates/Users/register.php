@@ -4,6 +4,11 @@
 <head>
     <?= $this->element('title-meta', ['title' => 'Registro']) ?>
     <?= $this->element('head-css') ?>
+    <style>
+    .authentication-bg {
+        background: #3a5556 !important;
+    }
+</style>
 </head>
 
 <body class="authentication-bg">
