@@ -125,6 +125,79 @@ class DashboardController extends AppController
                 : 0;
 
 
+            /* -----------------------------
+             * PROGRESO DE HÁBITOS
+             * -----------------------------
+             *
+             * Misma lógica de expansión por frecuencia
+             * que HabitosController::progreso(), pero
+             * solo nos interesa el total combinado
+             * para la tarjeta del Dashboard.
+             */
+
+            $registroHabitosTable = $this->fetchTable('RegistroHabitos');
+
+            $pasosFrecuencia = [
+                'diaria' => 1,
+                'cada 2 dias' => 2,
+                'cada 3 dias' => 3,
+                'semanal' => 7,
+            ];
+
+            $totalHabitosEsperadas = 0;
+            $totalHabitosCompletadas = 0;
+
+            foreach ($habitos as $habito) {
+
+                $fechaInicio = new \DateTime(
+                    $habito->fecha_creacion->format('Y-m-d')
+                );
+
+                $fechaHoy = new \DateTime($hoy);
+
+                $frecuencia = strtolower($habito->frecuencia);
+                $esperadas = [];
+
+                if ($frecuencia === 'mensual') {
+
+                    $cursor = clone $fechaInicio;
+
+                    while ($cursor <= $fechaHoy) {
+                        $esperadas[] = $cursor->format('Y-m-d');
+                        $cursor->modify('+1 month');
+                    }
+
+                } else {
+
+                    $paso = $pasosFrecuencia[$frecuencia] ?? 1;
+                    $cursor = clone $fechaInicio;
+
+                    while ($cursor <= $fechaHoy) {
+                        $esperadas[] = $cursor->format('Y-m-d');
+                        $cursor->modify("+{$paso} days");
+                    }
+                }
+
+                $completadasHabito = $registroHabitosTable
+                    ->find()
+                    ->where([
+                        'id_habito' => $habito->id_habito,
+                        'fecha IN' => $esperadas,
+                        'completado' => true,
+                    ])
+                    ->count();
+
+                $totalHabitosEsperadas += count($esperadas);
+                $totalHabitosCompletadas += $completadasHabito;
+            }
+
+            $progresoHabitos = $totalHabitosEsperadas > 0
+                ? round(
+                    ($totalHabitosCompletadas / $totalHabitosEsperadas) * 100
+                )
+                : 0;
+
+
             $this->set(compact(
                 'usuario',
                 'rol',
@@ -139,7 +212,10 @@ class DashboardController extends AppController
                 'totalCompletadas',
                 'totalTareasHoy',
                 'totalHabitos',
-                'progreso'
+                'progreso',
+                'totalHabitosEsperadas',
+                'totalHabitosCompletadas',
+                'progresoHabitos'
             ));
 
             return;

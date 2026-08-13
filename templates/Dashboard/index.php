@@ -641,6 +641,90 @@ $nombreUsuario = $usuario['nombre'] ?? 'Usuario';
 
 
     <!-- =====================================================
+         PROGRESO DE HÁBITOS
+    ====================================================== -->
+
+    <div class="row g-3 mb-4">
+
+        <div class="col-12">
+
+            <div class="card border-0 shadow-sm">
+
+                <div class="card-body p-4">
+
+                    <div
+                        class="
+                            d-flex
+                            justify-content-between
+                            align-items-center
+                            mb-2
+                        "
+                    >
+
+                        <div>
+
+                            <h4 class="mb-1">
+                                🌱 Progreso de tus hábitos
+                            </h4>
+
+                            <p class="text-muted mb-0">
+
+                                <?= $totalHabitosCompletadas ?>
+
+                                de
+
+                                <?= $totalHabitosEsperadas ?>
+
+                                cumplimientos esperados.
+
+                            </p>
+
+                        </div>
+
+
+                        <h4 class="text-success mb-0">
+                            <?= $progresoHabitos ?>%
+                        </h4>
+
+                    </div>
+
+
+                    <div
+                        class="progress"
+                        style="height: 10px;"
+                    >
+
+                        <div
+                            class="
+                                progress-bar
+                                bg-success
+                            "
+                            role="progressbar"
+
+                            style="
+                                width:
+                                <?= $progresoHabitos ?>%;
+                            "
+
+                            aria-valuenow="<?= $progresoHabitos ?>"
+
+                            aria-valuemin="0"
+
+                            aria-valuemax="100"
+                        ></div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- =====================================================
          PRÓXIMAS TAREAS
     ====================================================== -->
 

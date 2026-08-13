@@ -60,6 +60,16 @@ $this->assign('title', 'Mis Hábitos');
                                 Calendario
                             </a>
 
+                              href="<?= $this->Url->build([
+                              'controller' => 'Habitos',
+                                'action' => 'progreso'
+                            ]) ?>"
+                                class="btn btn-outline-success"
+                            >
+                             <i class="ti ti-chart-bar me-1"></i>
+
+                                Mi progreso
+                             </a>
 
                             <button
                                 type="button"

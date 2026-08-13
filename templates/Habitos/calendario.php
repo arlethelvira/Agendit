@@ -25,19 +25,28 @@ $this->assign('title', 'Schedule - Agendit');
             <div class="card">
                 <div class="card-body">
                     <div class="row">
-                        <div class="col-xl-3">
-                            <div class="d-grid">
-                                <button type="button" class="btn btn-primary" id="btn-new-event">
-                                    <i class="bx bx-plus fs-18 me-2"></i>
-                                    Nuevo Hábito
-                                </button>
-                            </div>
-                            <br />
-                            <p class="text-muted">
-                                Da click en un día del calendario para crear un hábito en esa fecha,
-                                o da click en un hábito existente para editarlo.
-                            </p>
-                          
+                       <div class="col-xl-3">
+    <div class="d-grid">
+        <button type="button" class="btn btn-primary" id="btn-new-event">
+            <i class="bx bx-plus fs-18 me-2"></i>
+            Nuevo Hábito
+        </button>
+    </div>
+
+                    <div class="d-grid mt-2">
+                    <?= $this->Html->link(
+                        '<i class="bx bx-line-chart fs-18 me-2"></i>Ver mi progreso',
+                        ['controller' => 'Habitos', 'action' => 'progreso'],
+                        ['class' => 'btn btn-outline-success', 'escape' => false]
+        )                ?>
+                </div>
+
+                 <br />
+                    <p class="text-muted">
+                        Da click en un día del calendario para crear un hábito en esa fecha,
+                        o da click en un hábito existente para editarlo.
+                        </p>
+
                         </div>
                         <!-- end col-->
 
@@ -117,14 +126,21 @@ $this->assign('title', 'Schedule - Agendit');
                                         </div>
                                     </div>
                                 </div>
-                                <div class="row">
-                                    <div class="col-6">
-                                        <button type="button" class="btn btn-danger" id="btn-delete-event">
-                                            Eliminar
-                                        </button>
+                                <div id="wrapper-completado" style="display: none;">
+                                    <hr class="mt-0 mb-2" />
+                                    <div class="form-check form-switch fs-16 mb-3">
+                                        <input class="form-check-input" type="checkbox" id="event-completado" />
+                                        <label class="form-check-label" for="event-completado">
+                                            Marcar como hecho (<span id="event-completado-fecha"></span>)
+                                        </label>
                                     </div>
-                                    <div class="col-6 text-end">
-                                        <button type="button" class="btn btn-light me-1" data-bs-dismiss="modal">
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                                    <button type="button" class="btn btn-danger" id="btn-delete-event">
+                                        Eliminar
+                                    </button>
+                                    <div class="d-flex gap-1">
+                                        <button type="button" class="btn btn-light" data-bs-dismiss="modal">
                                             Cerrar
                                         </button>
                                         <button type="submit" class="btn btn-primary" id="btn-save-event">

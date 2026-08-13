@@ -440,6 +440,88 @@ $nombreSocio =
 
     </div>
 
+    <!-- =====================================================
+         PROGRESO DE HÁBITOS
+    ====================================================== -->
+
+    <div class="row mb-4">
+
+        <div class="col-12">
+
+            <div class="card border-0 shadow-sm">
+
+                <div class="card-body p-4">
+
+                    <div
+                        class="
+                            d-flex
+                            flex-column
+                            flex-md-row
+                            justify-content-between
+                            align-items-md-center
+                            gap-3
+                            mb-3
+                        "
+                    >
+
+                        <div>
+
+                            <h4 class="mb-1">
+                                Progreso de hábitos asignados
+                            </h4>
+
+                            <p class="text-muted mb-0">
+
+                                Cumplimiento general de los hábitos
+                                que has asignado a este socio.
+
+                            </p>
+
+                        </div>
+
+
+                        <h2 class="text-success fw-bold mb-0">
+                            <?= $porcentajeHabitos ?>%
+                        </h2>
+
+                    </div>
+
+
+                    <div
+                        class="progress"
+                        style="
+                            height:12px;
+                            border-radius:20px;
+                        "
+                    >
+
+                        <div
+                            class="
+                                progress-bar
+                                bg-success
+                            "
+                            role="progressbar"
+
+                            style="
+                                width:
+                                <?= $porcentajeHabitos ?>%;
+                            "
+
+                            aria-valuenow="<?= $porcentajeHabitos ?>"
+                            aria-valuemin="0"
+                            aria-valuemax="100"
+                        ></div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
 
     <!-- =====================================================
          TAREAS + HÁBITOS
@@ -820,6 +902,11 @@ $nombreSocio =
 
                     <?php else: ?>
 
+                        $resumenPorHabito = [];
+                        foreach ($resumenHabitos as $r) {
+                            $resumenPorHabito[$r['id_habito']] = $r;
+                        }
+                        ?>
 
                         <?php foreach ($habitos as $habito): ?>
 
@@ -924,7 +1011,62 @@ $nombreSocio =
                                         Asignado por ti
 
                                     </span>
+                                    <span
+                                        class="
+                                            badge
+                                            bg-success-subtle
+                                            text-success
+                                            mt-2
+                                        "
+                                    >
 
+                                        <i
+                                            class="
+                                                ti
+                                                ti-stethoscope
+                                                me-1
+                                            "
+                                        ></i>
+
+                                        Asignado por ti
+
+                                    </span>
+
+
+                                    <?php
+                                    $r = $resumenPorHabito[$habito->id_habito] ?? null;
+                                    ?>
+
+                                    <?php if ($r): ?>
+
+                                        <div class="mt-2">
+
+                                            <div class="d-flex justify-content-between align-items-center mb-1">
+
+                                                <small class="text-muted">
+                                                    <?= $r['completadas'] ?> de <?= $r['esperadas'] ?> cumplidos
+                                                </small>
+
+                                                <small class="fw-bold text-success">
+                                                    <?= $r['porcentaje'] ?>%
+                                                </small>
+
+                                            </div>
+
+                                            <div class="progress" style="height: 6px;">
+
+                                                <div
+                                                    class="progress-bar bg-success"
+                                                    role="progressbar"
+                                                    style="width: <?= $r['porcentaje'] ?>%;"
+                                                ></div>
+
+                                            </div>
+
+                                        </div>
+
+                                    <?php endif; ?>
+                                    
                                 </div>
 
                             </div>

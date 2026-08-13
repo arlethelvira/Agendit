@@ -765,409 +765,484 @@ class VinculacionesController extends AppController
                 $vinculacion->usuario->apellido_paterno,
         ]);
     }
-/**
- * ==========================================================
- * PROGRESO DEL SOCIO
- * ==========================================================
- *
- * Permite al especialista consultar un resumen
- * del progreso de uno de sus socios vinculados.
- *
- * Muestra:
- *
- * - Total de tareas
- * - Tareas completadas
- * - Tareas pendientes
- * - Tareas vencidas
- * - Porcentaje de tareas completadas
- * - Tareas asignadas por este especialista
- * - Hábitos del socio
- * - Hábitos asignados por este especialista
- */
-/**
- * ==========================================================
- * PROGRESO DEL SOCIO
- * ==========================================================
- *
- * El especialista solamente puede consultar
- * las tareas y hábitos que ÉL MISMO asignó
- * al socio.
- *
- * No mostramos actividades personales
- * creadas por el socio.
- */
-public function progresoSocio($idUsuario = null)
-{
-    /*
-     * ======================================================
-     * USUARIO ACTUAL
-     * ======================================================
-     */
-    $usuario = $this->usuarioActual();
 
-
-    /*
-     * ======================================================
-     * SEGURIDAD
-     * ======================================================
-     */
-    if (
-        !$usuario ||
-        $usuario['rol'] !== 'especialista'
-    ) {
-
-        $this->Flash->error(
-            'No tienes permiso para consultar el progreso de un socio.'
-        );
-
-        return $this->redirect([
-            'controller' => 'Dashboard',
-            'action' => 'index'
-        ]);
-    }
-
-
-    /*
-     * ======================================================
-     * VALIDAR ID DEL SOCIO
-     * ======================================================
-     */
-    if ($idUsuario === null) {
-
-        $this->Flash->error(
-            'No se especificó el socio.'
-        );
-
-        return $this->redirect([
-            'action' => 'misSocios'
-        ]);
-    }
-
-
-    $idUsuario = (int)$idUsuario;
-
-
-    /*
-     * ======================================================
-     * BUSCAR ESPECIALISTA
-     * ======================================================
-     */
-    $especialista = $this
-        ->fetchTable('Especialistas')
-        ->find()
-        ->where([
-            'id_usuario' =>
-                (int)$usuario['id_usuario']
-        ])
-        ->first();
-
-
-    if (!$especialista) {
-
-        $this->Flash->error(
-            'No se encontró tu perfil de especialista.'
-        );
-
-        return $this->redirect([
-            'controller' => 'Dashboard',
-            'action' => 'index'
-        ]);
-    }
-
-
-    $idEspecialista =
-        (int)$especialista->id_especialista;
-
-
-    /*
-     * ======================================================
-     * VERIFICAR VINCULACIÓN
-     * ======================================================
-     */
-    $vinculacion = $this->Vinculaciones
-        ->find()
-        ->contain([
-            'Usuarios'
-        ])
-        ->where([
-            'Vinculaciones.id_usuario' =>
-                $idUsuario,
-
-            'Vinculaciones.id_especialista' =>
-                $idEspecialista,
-
-            'Vinculaciones.estado' =>
-                'ACTIVA'
-        ])
-        ->first();
-
-
-    if (!$vinculacion) {
-
-        $this->Flash->error(
-            'Este socio no está vinculado contigo o la vinculación está inactiva.'
-        );
-
-        return $this->redirect([
-            'action' => 'misSocios'
-        ]);
-    }
-
-
-    /*
-     * Datos del socio.
-     */
-    $socio =
-        $vinculacion->usuario;
-
-
-    /*
-     * ======================================================
-     * TAREAS ASIGNADAS POR ESTE ESPECIALISTA
-     * ======================================================
+    /**
+     * ==========================================================
+     * PROGRESO DEL SOCIO
+     * ==========================================================
      *
-     * IMPORTANTE:
+     * El especialista solamente puede consultar
+     * las tareas y hábitos que ÉL MISMO asignó
+     * al socio.
      *
-     * No buscamos todas las tareas del socio.
-     * Solo buscamos aquellas donde
-     * id_especialista sea el especialista actual.
+     * No mostramos actividades personales
+     * creadas por el socio.
      */
-    $Tareas =
-        $this->fetchTable('Tareas');
+    public function progresoSocio($idUsuario = null)
+    {
+        /*
+         * ======================================================
+         * USUARIO ACTUAL
+         * ======================================================
+         */
+        $usuario = $this->usuarioActual();
 
 
-    $tareas = $Tareas
-        ->find()
-        ->contain([
-            'Categorias'
-        ])
-        ->where([
-            'Tareas.id_usuario' =>
-                $idUsuario,
+        /*
+         * ======================================================
+         * SEGURIDAD
+         * ======================================================
+         */
+        if (
+            !$usuario ||
+            $usuario['rol'] !== 'especialista'
+        ) {
 
-            'Tareas.id_especialista' =>
-                $idEspecialista,
-
-            'Tareas.estado' =>
-                'activa'
-        ])
-        ->orderBy([
-            'Tareas.fecha_limite' =>
-                'DESC',
-
-            'Tareas.hora_limite' =>
-                'ASC'
-        ])
-        ->all();
-
-
-    /*
-     * ======================================================
-     * ESTADÍSTICAS DE TAREAS
-     * ======================================================
-     */
-    $totalTareas =
-        $tareas->count();
-
-
-    /*
-     * Completadas.
-     */
-    $tareasCompletadas =
-        $tareas->filter(
-            function ($tarea) {
-
-                return
-                    !empty(
-                        $tarea->fecha_completada
-                    );
-            }
-        );
-
-
-    /*
-     * Pendientes.
-     */
-    $tareasPendientes =
-        $tareas->filter(
-            function ($tarea) {
-
-                return
-                    empty(
-                        $tarea->fecha_completada
-                    );
-            }
-        );
-
-
-    /*
-     * ======================================================
-     * TAREAS VENCIDAS
-     * ======================================================
-     */
-    $hoy =
-        date('Y-m-d');
-
-
-    $tareasVencidas =
-        $tareas->filter(
-            function ($tarea) use ($hoy) {
-
-                if (
-                    !empty(
-                        $tarea->fecha_completada
-                    )
-                ) {
-
-                    return false;
-                }
-
-
-                if (
-                    empty(
-                        $tarea->fecha_limite
-                    )
-                ) {
-
-                    return false;
-                }
-
-
-                return
-                    $tarea
-                        ->fecha_limite
-                        ->format('Y-m-d')
-                    < $hoy;
-            }
-        );
-
-
-    /*
-     * Totales.
-     */
-    $totalCompletadas =
-        $tareasCompletadas->count();
-
-
-    $totalPendientes =
-        $tareasPendientes->count();
-
-
-    $totalVencidas =
-        $tareasVencidas->count();
-
-
-    /*
-     * Como TODAS las tareas cargadas
-     * fueron asignadas por este especialista,
-     * este total es igual al total de tareas.
-     */
-    $totalAsignadasPorMi =
-        $totalTareas;
-
-
-    /*
-     * ======================================================
-     * PORCENTAJE DE PROGRESO
-     * ======================================================
-     */
-    $porcentajeTareas = 0;
-
-
-    if ($totalTareas > 0) {
-
-        $porcentajeTareas =
-            (int)round(
-                (
-                    $totalCompletadas
-                    /
-                    $totalTareas
-                )
-                * 100
+            $this->Flash->error(
+                'No tienes permiso para consultar el progreso de un socio.'
             );
+
+            return $this->redirect([
+                'controller' => 'Dashboard',
+                'action' => 'index'
+            ]);
+        }
+
+
+        /*
+         * ======================================================
+         * VALIDAR ID DEL SOCIO
+         * ======================================================
+         */
+        if ($idUsuario === null) {
+
+            $this->Flash->error(
+                'No se especificó el socio.'
+            );
+
+            return $this->redirect([
+                'action' => 'misSocios'
+            ]);
+        }
+
+
+        $idUsuario = (int)$idUsuario;
+
+
+        /*
+         * ======================================================
+         * BUSCAR ESPECIALISTA
+         * ======================================================
+         */
+        $especialista = $this
+            ->fetchTable('Especialistas')
+            ->find()
+            ->where([
+                'id_usuario' =>
+                    (int)$usuario['id_usuario']
+            ])
+            ->first();
+
+
+        if (!$especialista) {
+
+            $this->Flash->error(
+                'No se encontró tu perfil de especialista.'
+            );
+
+            return $this->redirect([
+                'controller' => 'Dashboard',
+                'action' => 'index'
+            ]);
+        }
+
+
+        $idEspecialista =
+            (int)$especialista->id_especialista;
+
+
+        /*
+         * ======================================================
+         * VERIFICAR VINCULACIÓN
+         * ======================================================
+         */
+        $vinculacion = $this->Vinculaciones
+            ->find()
+            ->contain([
+                'Usuarios'
+            ])
+            ->where([
+                'Vinculaciones.id_usuario' =>
+                    $idUsuario,
+
+                'Vinculaciones.id_especialista' =>
+                    $idEspecialista,
+
+                'Vinculaciones.estado' =>
+                    'ACTIVA'
+            ])
+            ->first();
+
+
+        if (!$vinculacion) {
+
+            $this->Flash->error(
+                'Este socio no está vinculado contigo o la vinculación está inactiva.'
+            );
+
+            return $this->redirect([
+                'action' => 'misSocios'
+            ]);
+        }
+
+
+        /*
+         * Datos del socio.
+         */
+        $socio =
+            $vinculacion->usuario;
+
+
+        /*
+         * ======================================================
+         * TAREAS ASIGNADAS POR ESTE ESPECIALISTA
+         * ======================================================
+         *
+         * IMPORTANTE:
+         *
+         * No buscamos todas las tareas del socio.
+         * Solo buscamos aquellas donde
+         * id_especialista sea el especialista actual.
+         */
+        $Tareas =
+            $this->fetchTable('Tareas');
+
+
+        $tareas = $Tareas
+            ->find()
+            ->contain([
+                'Categorias'
+            ])
+            ->where([
+                'Tareas.id_usuario' =>
+                    $idUsuario,
+
+                'Tareas.id_especialista' =>
+                    $idEspecialista,
+
+                'Tareas.estado' =>
+                    'activa'
+            ])
+            ->orderBy([
+                'Tareas.fecha_limite' =>
+                    'DESC',
+
+                'Tareas.hora_limite' =>
+                    'ASC'
+            ])
+            ->all();
+
+
+        /*
+         * ======================================================
+         * ESTADÍSTICAS DE TAREAS
+         * ======================================================
+         */
+        $totalTareas =
+            $tareas->count();
+
+
+        /*
+         * Completadas.
+         */
+        $tareasCompletadas =
+            $tareas->filter(
+                function ($tarea) {
+
+                    return
+                        !empty(
+                            $tarea->fecha_completada
+                        );
+                }
+            );
+
+
+        /*
+         * Pendientes.
+         */
+        $tareasPendientes =
+            $tareas->filter(
+                function ($tarea) {
+
+                    return
+                        empty(
+                            $tarea->fecha_completada
+                        );
+                }
+            );
+
+
+        /*
+         * ======================================================
+         * TAREAS VENCIDAS
+         * ======================================================
+         */
+        $hoy =
+            date('Y-m-d');
+
+
+        $tareasVencidas =
+            $tareas->filter(
+                function ($tarea) use ($hoy) {
+
+                    if (
+                        !empty(
+                            $tarea->fecha_completada
+                        )
+                    ) {
+
+                        return false;
+                    }
+
+
+                    if (
+                        empty(
+                            $tarea->fecha_limite
+                        )
+                    ) {
+
+                        return false;
+                    }
+
+
+                    return
+                        $tarea
+                            ->fecha_limite
+                            ->format('Y-m-d')
+                        < $hoy;
+                }
+            );
+
+
+        /*
+         * Totales.
+         */
+        $totalCompletadas =
+            $tareasCompletadas->count();
+
+
+        $totalPendientes =
+            $tareasPendientes->count();
+
+
+        $totalVencidas =
+            $tareasVencidas->count();
+
+
+        /*
+         * Como TODAS las tareas cargadas
+         * fueron asignadas por este especialista,
+         * este total es igual al total de tareas.
+         */
+        $totalAsignadasPorMi =
+            $totalTareas;
+
+
+        /*
+         * ======================================================
+         * PORCENTAJE DE PROGRESO
+         * ======================================================
+         */
+        $porcentajeTareas = 0;
+
+
+        if ($totalTareas > 0) {
+
+            $porcentajeTareas =
+                (int)round(
+                    (
+                        $totalCompletadas
+                        /
+                        $totalTareas
+                    )
+                    * 100
+                );
+        }
+
+
+        /*
+         * ======================================================
+         * TAREAS RECIENTES
+         * ======================================================
+         */
+        $tareasRecientes =
+            $tareas->take(5);
+
+
+        /*
+         * ======================================================
+         * HÁBITOS ASIGNADOS POR ESTE ESPECIALISTA
+         * ======================================================
+         *
+         * Tampoco mostramos hábitos personales
+         * creados por el socio.
+         */
+        $Habitos =
+            $this->fetchTable('Habitos');
+
+
+        $habitos = $Habitos
+            ->find()
+            ->where([
+                'Habitos.id_usuario' =>
+                    $idUsuario,
+
+                'Habitos.id_especialista' =>
+                    $idEspecialista,
+
+                'Habitos.creado_por' =>
+                    'ESPECIALISTA'
+            ])
+            ->orderBy([
+                'Habitos.fecha_creacion' =>
+                    'DESC'
+            ])
+            ->all();
+
+
+        $totalHabitos =
+            $habitos->count();
+
+
+        /*
+         * Todos los hábitos cargados
+         * fueron asignados por este especialista.
+         */
+        $totalHabitosAsignadosPorMi =
+            $totalHabitos;
+
+
+        /*
+         * ======================================================
+         * PORCENTAJE DE CUMPLIMIENTO DE HÁBITOS
+         * ======================================================
+         *
+         * Igual que con tareas, solo consideramos
+         * los hábitos que este especialista asignó.
+         *
+         * Por cada hábito calculamos cuántas
+         * ocurrencias esperadas hay hasta hoy
+         * (según su frecuencia), y cuántas de esas
+         * están marcadas como completadas en
+         * registro_habito.
+         */
+        $RegistroHabitos =
+            $this->fetchTable('RegistroHabitos');
+
+        $pasos = [
+            'diaria' => 1,
+            'cada 2 dias' => 2,
+            'cada 3 dias' => 3,
+            'semanal' => 7,
+        ];
+
+        $resumenHabitos = [];
+        $totalEsperadasHabitos = 0;
+        $totalCompletadasHabitos = 0;
+
+        foreach ($habitos as $habito) {
+
+            $fechaInicio = new \DateTime(
+                $habito->fecha_creacion->format('Y-m-d')
+            );
+
+            $fechaHoy = new \DateTime($hoy);
+
+            $frecuencia = strtolower($habito->frecuencia);
+            $esperadas = [];
+
+            if ($frecuencia === 'mensual') {
+
+                $cursor = clone $fechaInicio;
+
+                while ($cursor <= $fechaHoy) {
+                    $esperadas[] = $cursor->format('Y-m-d');
+                    $cursor->modify('+1 month');
+                }
+
+            } else {
+
+                $paso = $pasos[$frecuencia] ?? 1;
+                $cursor = clone $fechaInicio;
+
+                while ($cursor <= $fechaHoy) {
+                    $esperadas[] = $cursor->format('Y-m-d');
+                    $cursor->modify("+{$paso} days");
+                }
+            }
+
+            $completadas = $RegistroHabitos
+                ->find()
+                ->where([
+                    'id_habito' => $habito->id_habito,
+                    'fecha IN' => $esperadas,
+                    'completado' => true
+                ])
+                ->count();
+
+            $totalEsp = count($esperadas);
+            $porcentajeHabito = $totalEsp > 0
+                ? (int)round(($completadas / $totalEsp) * 100)
+                : 0;
+
+            $resumenHabitos[] = [
+            'id_habito' => $habito->id_habito,
+            'titulo' => $habito->titulo,
+            'esperadas' => $totalEsp,
+            'completadas' => $completadas,
+            'porcentaje' => $porcentajeHabito
+        ];
+
+            $totalEsperadasHabitos += $totalEsp;
+            $totalCompletadasHabitos += $completadas;
+        }
+
+        $porcentajeHabitos = $totalEsperadasHabitos > 0
+            ? (int)round(($totalCompletadasHabitos / $totalEsperadasHabitos) * 100)
+            : 0;
+
+
+        /*
+         * ======================================================
+         * ENVIAR DATOS A LA VISTA
+         * ======================================================
+         */
+        $this->set(compact(
+            'socio',
+            'vinculacion',
+            'especialista',
+
+            'tareas',
+            'tareasCompletadas',
+            'tareasPendientes',
+            'tareasVencidas',
+            'tareasRecientes',
+
+            'totalTareas',
+            'totalCompletadas',
+            'totalPendientes',
+            'totalVencidas',
+            'totalAsignadasPorMi',
+            'porcentajeTareas',
+
+            'habitos',
+            'totalHabitos',
+            'totalHabitosAsignadosPorMi',
+
+            'resumenHabitos',
+            'porcentajeHabitos'
+        ));
     }
-
-
-    /*
-     * ======================================================
-     * TAREAS RECIENTES
-     * ======================================================
-     */
-    $tareasRecientes =
-        $tareas->take(5);
-
-
-    /*
-     * ======================================================
-     * HÁBITOS ASIGNADOS POR ESTE ESPECIALISTA
-     * ======================================================
-     *
-     * Tampoco mostramos hábitos personales
-     * creados por el socio.
-     */
-    $Habitos =
-        $this->fetchTable('Habitos');
-
-
-    $habitos = $Habitos
-        ->find()
-        ->where([
-            'Habitos.id_usuario' =>
-                $idUsuario,
-
-            'Habitos.id_especialista' =>
-                $idEspecialista,
-
-            'Habitos.creado_por' =>
-                'ESPECIALISTA'
-        ])
-        ->orderBy([
-            'Habitos.fecha_creacion' =>
-                'DESC'
-        ])
-        ->all();
-
-
-    $totalHabitos =
-        $habitos->count();
-
-
-    /*
-     * Todos los hábitos cargados
-     * fueron asignados por este especialista.
-     */
-    $totalHabitosAsignadosPorMi =
-        $totalHabitos;
-
-
-    /*
-     * ======================================================
-     * ENVIAR DATOS A LA VISTA
-     * ======================================================
-     */
-    $this->set(compact(
-        'socio',
-        'vinculacion',
-        'especialista',
-
-        'tareas',
-        'tareasCompletadas',
-        'tareasPendientes',
-        'tareasVencidas',
-        'tareasRecientes',
-
-        'totalTareas',
-        'totalCompletadas',
-        'totalPendientes',
-        'totalVencidas',
-        'totalAsignadasPorMi',
-        'porcentajeTareas',
-
-        'habitos',
-        'totalHabitos',
-        'totalHabitosAsignadosPorMi'
-    ));
-}
 
     /**
      * ==========================================================

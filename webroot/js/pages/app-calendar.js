@@ -13,6 +13,11 @@ class CalendarSchedule {
         this.btnSaveEvent = document.getElementById("btn-save-event");
         this.modalTitle = document.getElementById("modal-title");
 
+        // Checkbox de "Marcar como hecho"
+        this.wrapperCompletado = document.getElementById("wrapper-completado");
+        this.checkCompletado = document.getElementById("event-completado");
+        this.spanCompletadoFecha = document.getElementById("event-completado-fecha");
+
         this.calendarObj = null;
         this.selectedEvent = null;
         this.newEventData = null;
@@ -25,6 +30,13 @@ class CalendarSchedule {
          * vez que cambia la vista del calendario.
          */
         this.habitos = [];
+
+        /*
+         * Set con claves "idHabito-YYYY-MM-DD" de
+         * las ocurrencias ya marcadas como completadas.
+         * Viene de /habitos/registros-completados.
+         */
+        this.registrosCompletados = new Set();
     }
 
     /*
@@ -64,21 +76,48 @@ class CalendarSchedule {
      * Trae los hábitos del usuario en sesión.
      */
     cargarHabitos() {
-    const a = this;
+        const a = this;
 
-    return this.fetchJson("/habitos/index")
-        .then(function (res) {
-            a.habitos = (res && res.data) ? res.data : [];
-        })
-        .catch(function (err) {
-            console.error(
-                "No se pudieron cargar los hábitos:",
-                err
-            );
+        return this.fetchJson("/habitos/index")
+            .then(function (res) {
+                a.habitos = (res && res.data) ? res.data : [];
+            })
+            .catch(function (err) {
+                console.error(
+                    "No se pudieron cargar los hábitos:",
+                    err
+                );
 
-            a.habitos = [];
-        });
-}
+                a.habitos = [];
+            });
+    }
+
+    /*
+     * Trae las fechas ya marcadas como completadas
+     * y arma un Set para consultarlas rápido.
+     */
+    cargarRegistrosCompletados() {
+        const a = this;
+
+        return this.fetchJson("/habitos/registros-completados")
+            .then(function (res) {
+                const data = (res && res.data) ? res.data : [];
+
+                a.registrosCompletados = new Set(
+                    data.map(function (r) {
+                        return r.id_habito + "-" + r.fecha;
+                    })
+                );
+            })
+            .catch(function (err) {
+                console.error(
+                    "No se pudieron cargar los registros de cumplimiento:",
+                    err
+                );
+
+                a.registrosCompletados = new Set();
+            });
+    }
 
     /*
      * Expande un hábito en ocurrencias de calendario
@@ -86,6 +125,7 @@ class CalendarSchedule {
      * su frecuencia, anclado a fecha_creacion.
      */
     expandirHabito(habito, rangeStart, rangeEnd) {
+        const a = this;
         const eventos = [];
 
         const creado = new Date(habito.fecha_creacion);
@@ -110,19 +150,27 @@ class CalendarSchedule {
             const y = fecha.getFullYear();
             const m = String(fecha.getMonth() + 1).padStart(2, "0");
             const d = String(fecha.getDate()).padStart(2, "0");
+            const fechaStr = y + "-" + m + "-" + d;
+
+            const completado = a.registrosCompletados.has(
+                habito.id_habito + "-" + fechaStr
+            );
 
             eventos.push({
                 id: habito.id_habito + "-" + y + m + d,
-                title: habito.titulo,
-                start: y + "-" + m + "-" + d,
+                title: (completado ? "✓ " : "") + habito.titulo,
+                start: fechaStr,
                 allDay: true,
-                className: habito.color,
+                className: completado
+                    ? habito.color + " habito-completado"
+                    : habito.color,
                 extendedProps: {
                     id_habito: habito.id_habito,
                     notas: habito.notas,
                     frecuencia: habito.frecuencia,
                     color: habito.color,
-                    creado_por: habito.creado_por
+                    creado_por: habito.creado_por,
+                    completado: completado
                 }
             });
         };
@@ -172,6 +220,21 @@ class CalendarSchedule {
         return eventos;
     }
 
+    /*
+     * Refresca hábitos + registros de cumplimiento
+     * y vuelve a pintar el calendario.
+     */
+    refrescarCalendario() {
+        const a = this;
+
+        return Promise.all([
+            this.cargarHabitos(),
+            this.cargarRegistrosCompletados()
+        ]).then(function () {
+            a.calendarObj.refetchEvents();
+        });
+    }
+
     onEventClick(e) {
         this.formEvent?.reset();
         this.formEvent.classList.remove("was-validated");
@@ -183,7 +246,7 @@ class CalendarSchedule {
         const props = e.event.extendedProps;
 
         document.getElementById("event-title").value =
-            e.event.title;
+            e.event.title.replace(/^✓\s*/, "");
 
         document.getElementById("event-notas").value =
             props.notas || "";
@@ -213,6 +276,18 @@ class CalendarSchedule {
             ? "Hábito asignado por tu especialista (solo lectura)"
             : "Editar hábito";
 
+        /*
+         * Checkbox de "Marcar como hecho".
+         *
+         * Se muestra siempre (tanto para hábitos propios
+         * como asignados por especialista, ya que el socio
+         * SÍ puede marcar cumplimiento aunque no pueda
+         * editar/eliminar un hábito asignado).
+         */
+        this.wrapperCompletado.style.display = "block";
+        this.checkCompletado.checked = props.completado === true;
+        this.spanCompletadoFecha.textContent = e.event.startStr;
+
         this.modal.show();
     }
 
@@ -231,6 +306,9 @@ class CalendarSchedule {
         this.btnSaveEvent.style.display = "block";
         this.btnDeleteEvent.style.display = "none";
 
+        // No aplica marcar cumplimiento en un hábito que aún no existe.
+        this.wrapperCompletado.style.display = "none";
+
         this.modalTitle.textContent = "Nuevo hábito";
         this.modal.show();
 
@@ -240,66 +318,70 @@ class CalendarSchedule {
     init() {
 
         const a = this;
-/* =========================================================
-   FRECUENCIA POR DÍAS ESPECÍFICOS
-========================================================= */
+        /* =========================================================
+           FRECUENCIA POR DÍAS ESPECÍFICOS
+        ========================================================= */
 
-const selectFrecuencia =
-    document.getElementById("event-frecuencia");
+        const selectFrecuencia =
+            document.getElementById("event-frecuencia");
 
-const contenedorDias =
-    document.getElementById("contenedor-dias-especificos");
+        const contenedorDias =
+            document.getElementById("contenedor-dias-especificos");
 
-const checkDias =
-    document.querySelectorAll(".dia-habito");
+        const checkDias =
+            document.querySelectorAll(".dia-habito");
 
-const errorDias =
-    document.getElementById("error-dias-habito");
-
-
-/*
- * Mostrar u ocultar los días
- * según la frecuencia seleccionada.
- */
-selectFrecuencia.addEventListener(
-    "change",
-    function () {
-
-        if (
-            selectFrecuencia.value ===
-            "dias_especificos"
-        ) {
-
-            contenedorDias.style.display =
-                "block";
-
-        } else {
-
-            contenedorDias.style.display =
-                "none";
-
-            errorDias.style.display =
-                "none";
+        const errorDias =
+            document.getElementById("error-dias-habito");
 
 
-            /*
-             * Quitamos selecciones anteriores.
-             */
-            checkDias.forEach(function (check) {
-
-                check.checked = false;
-
-            });
-
-        }
-
-    }
-);
         /*
-         * Cargamos los hábitos reales antes
-         * de inicializar el calendario.
+         * Mostrar u ocultar los días
+         * según la frecuencia seleccionada.
          */
-        this.cargarHabitos().then(function () {
+        selectFrecuencia.addEventListener(
+            "change",
+            function () {
+
+                if (
+                    selectFrecuencia.value ===
+                    "dias_especificos"
+                ) {
+
+                    contenedorDias.style.display =
+                        "block";
+
+                } else {
+
+                    contenedorDias.style.display =
+                        "none";
+
+                    errorDias.style.display =
+                        "none";
+
+
+                    /*
+                     * Quitamos selecciones anteriores.
+                     */
+                    checkDias.forEach(function (check) {
+
+                        check.checked = false;
+
+                    });
+
+                }
+
+            }
+        );
+
+        /*
+         * Cargamos los hábitos y sus registros de
+         * cumplimiento antes de inicializar el calendario.
+         */
+        Promise.all([
+            this.cargarHabitos(),
+            this.cargarRegistrosCompletados()
+        ]).then(function () {
 
             a.calendarObj = new FullCalendar.Calendar(
                 a.calendar,
@@ -382,6 +464,41 @@ selectFrecuencia.addEventListener(
 
 
         /*
+         * Checkbox: marcar/desmarcar cumplimiento
+         */
+        a.checkCompletado.addEventListener("change", function () {
+
+            if (!a.selectedEvent) {
+                return;
+            }
+
+            const idHabito = a.selectedEvent.extendedProps.id_habito;
+            const fecha = a.selectedEvent.startStr;
+
+            // Deshabilitamos mientras se guarda, para evitar doble clic.
+            a.checkCompletado.disabled = true;
+
+            a.fetchJson("/habitos/marcar-completado/" + idHabito, {
+                method: "POST",
+                body: JSON.stringify({ fecha: fecha })
+            })
+                .then(function (res) {
+                    a.checkCompletado.checked = !!res.completado;
+                    return a.refrescarCalendario();
+                })
+                .catch(function (err) {
+                    console.error("Error al marcar cumplimiento:", err);
+                    alert("No se pudo actualizar el cumplimiento.");
+                    // Revertimos el check visualmente si falló.
+                    a.checkCompletado.checked = !a.checkCompletado.checked;
+                })
+                .finally(function () {
+                    a.checkCompletado.disabled = false;
+                });
+        });
+
+
+        /*
          * Guardar / editar hábito
          */
         a.formEvent?.addEventListener("submit", function (e) {
@@ -397,92 +514,92 @@ selectFrecuencia.addEventListener(
             }
 
             /* =========================================================
-   OBTENER FRECUENCIA
-========================================================= */
+               OBTENER FRECUENCIA
+            ========================================================= */
 
-let frecuenciaFinal =
-    selectFrecuencia.value;
-
-
-/*
- * Si seleccionó días específicos,
- * obtenemos únicamente los checks marcados.
- */
-if (
-    selectFrecuencia.value ===
-    "dias_especificos"
-) {
-
-    const diasSeleccionados = [];
-
-    checkDias.forEach(function (check) {
-
-        if (check.checked) {
-
-            diasSeleccionados.push(
-                check.value
-            );
-
-        }
-
-    });
+            let frecuenciaFinal =
+                selectFrecuencia.value;
 
 
-    /*
-     * Debe seleccionar mínimo un día.
-     */
-    if (
-        diasSeleccionados.length === 0
-    ) {
+            /*
+             * Si seleccionó días específicos,
+             * obtenemos únicamente los checks marcados.
+             */
+            if (
+                selectFrecuencia.value ===
+                "dias_especificos"
+            ) {
 
-        errorDias.style.display =
-            "block";
+                const diasSeleccionados = [];
 
-        return;
+                checkDias.forEach(function (check) {
 
-    }
+                    if (check.checked) {
 
+                        diasSeleccionados.push(
+                            check.value
+                        );
 
-    errorDias.style.display =
-        "none";
+                    }
 
-
-    /*
-     * Ejemplo:
-     *
-     * lunes,miercoles,viernes
-     */
-    frecuenciaFinal =
-        diasSeleccionados.join(",");
-
-}
+                });
 
 
-/* =========================================================
-   PAYLOAD
-========================================================= */
+                /*
+                 * Debe seleccionar mínimo un día.
+                 */
+                if (
+                    diasSeleccionados.length === 0
+                ) {
 
-const payload = {
+                    errorDias.style.display =
+                        "block";
 
-    titulo:
-        document
-            .getElementById("event-title")
-            .value,
+                    return;
 
-    notas:
-        document
-            .getElementById("event-notas")
-            .value,
+                }
 
-    frecuencia:
-        frecuenciaFinal,
 
-    color:
-        document
-            .getElementById("event-category")
-            .value
+                errorDias.style.display =
+                    "none";
 
-};
+
+                /*
+                 * Ejemplo:
+                 *
+                 * lunes,miercoles,viernes
+                 */
+                frecuenciaFinal =
+                    diasSeleccionados.join(",");
+
+            }
+
+
+            /* =========================================================
+               PAYLOAD
+            ========================================================= */
+
+            const payload = {
+
+                titulo:
+                    document
+                        .getElementById("event-title")
+                        .value,
+
+                notas:
+                    document
+                        .getElementById("event-notas")
+                        .value,
+
+                frecuencia:
+                    frecuenciaFinal,
+
+                color:
+                    document
+                        .getElementById("event-category")
+                        .value
+
+            };
 
             /*
              * Editar hábito existente
@@ -497,10 +614,7 @@ const payload = {
                 })
                     .then(function () {
                         a.modal.hide();
-                        return a.cargarHabitos();
-                    })
-                    .then(function () {
-                        a.calendarObj.refetchEvents();
+                        return a.refrescarCalendario();
                     })
                     .catch(function (err) {
                         console.error("Error al editar hábito:", err);
@@ -520,10 +634,7 @@ const payload = {
                 })
                     .then(function () {
                         a.modal.hide();
-                        return a.cargarHabitos();
-                    })
-                    .then(function () {
-                        a.calendarObj.refetchEvents();
+                        return a.refrescarCalendario();
                     })
                     .catch(function (err) {
                         console.error("Error al crear hábito:", err);
@@ -550,10 +661,7 @@ const payload = {
                 .then(function () {
                     a.selectedEvent = null;
                     a.modal.hide();
-                    return a.cargarHabitos();
-                })
-                .then(function () {
-                    a.calendarObj.refetchEvents();
+                    return a.refrescarCalendario();
                 })
                 .catch(function (err) {
                     console.error("Error al eliminar hábito:", err);
